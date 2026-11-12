@@ -34,17 +34,11 @@ export function matchComplexes(records, input) {
   return { ...parsed, matches: matches.slice(0, 3), total: matches.length, minimumBudget: candidates[0]?.estimatedPrice ?? null };
 }
 
-export function median(numbers) {
-  const values = [...numbers].sort((a, b) => a - b);
-  if (!values.length) return null;
-  const middle = Math.floor(values.length / 2);
-  return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
-}
-
 export function cityStats(records) {
   return CITIES.map(city => {
     const rows = records.filter(row => row.city === city);
     const prices = rows.map(row => row.priceFrom);
-    return { city, count: rows.length, median: median(prices), min: Math.min(...prices), max: Math.max(...prices) };
+    const cheapest = rows.reduce((best, row) => !best || row.priceFrom < best.priceFrom ? row : best, null);
+    return { city, count: rows.length, min: cheapest?.priceFrom ?? null, max: prices.length ? Math.max(...prices) : null, cheapest };
   });
 }

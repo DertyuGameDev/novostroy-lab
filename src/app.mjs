@@ -1,4 +1,4 @@
-import { matchComplexes, cityStats, CITIES } from './matcher.mjs';
+import { matchComplexes, cityStats, CITIES } from './matcher.mjs?v=2';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -46,7 +46,9 @@ function renderResults(announce = true) {
     $('#result-cards').innerHTML = result.matches.map((row,index) => `<article class="complex-card">
       <div class="card-top"><span class="badge">${escape(row.class)}</span><span class="rank">0${index+1}</span></div>
       <h3>${escape(row.name)}</h3><p class="district">${escape(row.district)} · ${escape(row.developer)}</p>
-      <p class="cost">≈ ${rubles(row.estimatedPrice)}</p><p class="calculation">${rubles(row.priceFrom)} / м² × ${number(result.area)} м²</p>
+      <p class="cost"><span class="price-prefix">от</span> ${number(row.priceFrom)} <span class="price-unit">₽/м²</span></p>
+      <div class="apartment-estimate"><span>Квартира ${number(result.area)} м²</span><strong>≈ ${rubles(row.estimatedPrice)}</strong></div>
+      <p class="calculation">${rubles(row.priceFrom)} / м² × ${number(result.area)} м²</p>
       <p class="delivery">Сдача: ${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery))}</p>
       <div class="card-footer"><span>Источник: ${date(row.sourceDate)}${row.sourceDate ? '' : ' (дата прайса)'}</span>${link(row.sourceUrl,'Цена в источнике ↗','text-link')}</div>
     </article>`).join('');
@@ -70,7 +72,8 @@ function renderCatalog() {
 
 function renderResearch() {
   const stats = cityStats(records);
-  $('#stats').innerHTML = stats.map(row => `<article class="stat"><h2>${escape(row.city)}</h2><p class="value">${number(row.median)} <span>₽/м²</span></p><p>Медиана пяти минимумов · от ${number(row.min)} до ${number(row.max)} ₽/м²</p></article>`).join('');
+  $('#hero-prices').innerHTML = stats.map(row => link(row.cheapest.sourceUrl,`<span>${escape(row.city)}</span><strong>${number(row.min)} <small>↗</small></strong>`,'entry-price')).join('');
+  $('#stats').innerHTML = stats.map(row => `<article class="stat"><h2>${escape(row.city)}</h2><p class="stat-label">Минимальная цена за м²</p><p class="value">${number(row.min)} <span>₽/м²</span></p><p>${link(row.cheapest.sourceUrl,escape(row.cheapest.name)+' ↗')}</p><small>Минимум среди ${row.count} ЖК выборки</small></article>`).join('');
   const colors = {'Москва':'moscow','Сочи':'sochi','Санкт-Петербург':'spb'};
   const max = Math.ceil(Math.max(...records.map(row=>row.priceFrom))/100000)*100000;
   $('#chart').innerHTML = CITIES.map(city=>`<div class="chart-group">${records.filter(row=>row.city===city).sort((a,b)=>a.priceFrom-b.priceFrom).map(row=>`<div class="chart-row"><span class="chart-label">${escape(row.name)}</span><div class="bar-track" aria-hidden="true"><div class="bar ${colors[city]}" style="width:${row.priceFrom/max*100}%"></div></div><span class="chart-value">${number(row.priceFrom)}</span></div>`).join('')}</div>`).join('')+`<div class="chart-axis" aria-hidden="true"><span>0</span><span>${number(max/2)}</span><span>${number(max)}</span></div>`;
@@ -78,9 +81,9 @@ function renderResearch() {
   const sochi = stats.find(row=>row.city==='Сочи');
   const spb = stats.find(row=>row.city==='Санкт-Петербург');
   $('#findings-list').innerHTML = [
-    `<strong>Москва дороже по медиане:</strong> ${number(moscow.median)} ₽/м² против ${number(sochi.median)} в Сочи — разница ${number(Math.round((moscow.median/sochi.median-1)*100))}%. Это медианы минимумов выбранных ЖК, а не всего рынка.`,
+    `<strong>Самая высокая минимальная цена — в Москве:</strong> ${number(moscow.min)} ₽/м² против ${number(sochi.min)} в Сочи — разница ${number(Math.round((moscow.min/sochi.min-1)*100))}%. Сравниваются минимумы выбранных ЖК в каждом городе.`,
     `<strong>Самый низкий порог — у «Южного Парка»:</strong> ${number(sochi.min)} ₽/м². Самый высокий — у PRIME PARK: ${number(moscow.max)} ₽/м². Разница в ${number(Math.round(moscow.max/sochi.min*100)/100)} раза.`,
-    `<strong>Петербург находится между двумя городами:</strong> медиана ${number(spb.median)} ₽/м². При условных 50 м² это ${number(spb.median*50/1e6)} млн ₽; наличие квартиры по этой ставке не подтверждено.`,
+    `<strong>Петербург находится между двумя городами:</strong> минимальная цена ${number(spb.min)} ₽/м² у Neva Residence. При условных 50 м² ориентир — ${number(spb.min*50/1e6)} млн ₽; наличие квартиры по этой ставке не подтверждено.`,
     `<strong>Неожиданный результат — премиум дешевле бизнеса по стартовому метру:</strong> Neva Residence — 348 400 ₽/м², James Beck — 405 000. Минимумы относятся к разным лотам; одного класса недостаточно для сопоставления квартир.`
   ].map(text=>`<li><div>${text}</div></li>`).join('');
 }

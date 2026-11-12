@@ -9,7 +9,7 @@ const out=path.join(root,'outputs/2026-11-12');await mkdir(out,{recursive:true})
 const wb=Workbook.create();
 const summary=wb.worksheets.add('Сравнение');
 const data=wb.worksheets.add('ЖК');
-const dark='#243E36',cream='#F5F2E9',muted='#5C665F',accent='#A2462F';
+const dark='#182126',cream='#FFFFFF',muted='#616D75',accent='#345C73';
 for(const [sheet,range] of [[summary,'A1:N36'],[data,'A1:N24']]){
   sheet.showGridLines=false;sheet.getRange(range).format.font={name:'Arial',size:11,color:dark};
   sheet.getRange(range).format.fill=cream;sheet.getRange(range).format.verticalAlignment='center';
@@ -31,35 +31,35 @@ for(let i=0;i<records.length;i++){
     // The artifact runtime does not calculate HYPERLINK reliably. Keep the full
     // auditable URL as a plain value instead of exporting an invalid cached result.
     data.getRange(`${col}${n}`).values=[[url]];
-    data.getRange(`${col}${n}`).format.font={size:9,color:'#286653'};
+    data.getRange(`${col}${n}`).format.font={size:9,color:accent};
   }
 }
 data.freezePanes.freezeRows(4);data.freezePanes.freezeColumns(2);
 title(summary,'A1:N1','Метр • исследование новостроек');
-summary.mergeCells('A2:N2');summary.getRange('A2').values=[['Медианы опубликованных цен от за м² • целевая выборка, по 5 ЖК • проверка 12.11.2026']];summary.getRange('A2:N2').format.font={size:10,color:muted};
+summary.mergeCells('A2:N2');summary.getRange('A2').values=[['Минимальная опубликованная цена за м² по городу • по 5 ЖК в выборке • проверка 12.11.2026']];summary.getRange('A2:N2').format.font={size:10,color:muted};
 summary.getRange('A:N').format.columnWidth=13;
-summary.getRange('A:A').format.columnWidth=22;summary.getRange('B:D').format.columnWidth=15;
-summary.getRange('A4:E4').values=[['Город','Медиана, ₽/м²','Минимум','Максимум','ЖК']];
+summary.getRange('A:A').format.columnWidth=22;summary.getRange('B:C').format.columnWidth=17;summary.getRange('D:D').format.columnWidth=8;summary.getRange('E:E').format.columnWidth=24;
+summary.getRange('A4:E4').values=[['Город','Минимум, ₽/м²','Максимум, ₽/м²','ЖК','ЖК с минимальной ценой']];
 summary.getRange('A4:E4').format={fill:dark,font:{bold:true,color:'#FFFFFF',size:10},wrapText:true,rowHeight:36};
 for(const [index,city,start,end] of [[5,'Москва',10,14],[6,'Сочи',5,9],[7,'Санкт-Петербург',15,19]]){
   summary.getRange(`A${index}`).values=[[city]];
-  summary.getRange(`B${index}:E${index}`).formulas=[[`=MEDIAN('ЖК'!F${start}:F${end})`,`=MIN('ЖК'!F${start}:F${end})`,`=MAX('ЖК'!F${start}:F${end})`,`=COUNT('ЖК'!F${start}:F${end})`]];
+  summary.getRange(`B${index}:E${index}`).formulas=[[`=MIN('ЖК'!F${start}:F${end})`,`=MAX('ЖК'!F${start}:F${end})`,`=COUNT('ЖК'!F${start}:F${end})`,`=INDEX('ЖК'!B${start}:B${end},MATCH(B${index},'ЖК'!F${start}:F${end},0))`]];
 }
-summary.getRange('B5:D7').format.numberFormat='#,##0';summary.getRange('B5:B7').format.font={bold:true,color:accent};
+summary.getRange('B5:C7').format.numberFormat='#,##0';summary.getRange('B5:B7').format.font={bold:true,color:accent};summary.getRange('E5:E7').format.wrapText=true;summary.getRange('A5:E7').format.rowHeight=35;
 const chart=summary.charts.add('bar',summary.getRange('A4:B7'));
-chart.title='Медиана пяти минимальных цен';chart.titleTextStyle.fontSize=15;chart.titleTextStyle.typeface='Arial';chart.hasLegend=false;
+chart.title='Минимальная цена за м² по городам';chart.titleTextStyle.fontSize=15;chart.titleTextStyle.typeface='Arial';chart.hasLegend=false;
 chart.xAxis={axisType:'textAxis',textStyle:{typeface:'Arial',fontSize:11}};
 chart.yAxis={numberFormatCode:'#,##0',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:10}};
 chart.series.items[0].fill=dark;chart.setPosition('G4','N20');
 summary.getRange('A10:E10').merge();summary.getRange('A10').values=[['Четыре вывода по выборке']];summary.getRange('A10:E10').format.font={bold:true,size:14};
 const findings=[
- 'Москва: медиана 553 300 ₽/м², Сочи: 365 763. Разница около 51% по выбранным ЖК.',
+ 'Москва: минимум 422 000 ₽/м² у Шагал. Сочи: 290 000 ₽/м² у Южного Парка. Разница около 46%.',
  'Минимум: Южный Парк — 290 000 ₽/м². Максимум: PRIME PARK — 738 700. Разброс 2,55 раза.',
- 'Петербург: медиана 497 300 ₽/м². Условные 50 м² × медиана = 24 865 000 ₽.',
+ 'Петербург: минимум 348 400 ₽/м² у Neva Residence. Условные 50 м² × эта ставка = 17 420 000 ₽.',
  'Neva Residence (премиум) от 348 400 ₽/м² ниже James Beck (бизнес) от 405 000. Это разные лоты и каталоги.'
 ];
 for(let i=0;i<findings.length;i++){const row=12+i*3;summary.mergeCells(`A${row}:E${row+1}`);summary.getRange(`A${row}`).values=[[`${i+1}. ${findings[i]}`]];summary.getRange(`A${row}:E${row+1}`).format.wrapText=true;}
-summary.mergeCells('A26:N28');summary.getRange('A26').values=[['Методика: медиана пяти цен от, не средняя цена рынка. Сочи: 5 бизнес; Москва: 2 бизнес + 3 премиум; СПб: 3 бизнес + 2 премиум. Классы — по выбранным каталогам. Цены, даты и ограничения проверки — на листе ЖК.']];summary.getRange('A26:N28').format.wrapText=true;
+summary.mergeCells('A26:N28');summary.getRange('A26').values=[['Методика: минимум опубликованных цен от среди пяти выбранных ЖК каждого города. Это нижняя граница выборки. Сочи: 5 бизнес; Москва: 2 бизнес + 3 премиум; СПб: 3 бизнес + 2 премиум. Цены, источники и ограничения — на листе ЖК.']];summary.getRange('A26:N28').format.wrapText=true;
 summary.mergeCells('A30:N32');summary.getRange('A30').values=[['Подборщик: цена от за м² × площадь. Это ориентир, не найденная в продаже квартира. Дата проверки не равна дате прайса. У Острова и Olivia использована индексированная выдача; подробности — в примечаниях.']];summary.getRange('A30:N32').format.wrapText=true;summary.getRange('A30:N32').format.font={color:muted,size:10};
 summary.freezePanes.freezeRows(4);
 wb.recalculate();

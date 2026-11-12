@@ -35,6 +35,8 @@ test('invalid inputs cannot produce results',()=>{
   }
   assert.equal(Object.keys(validateInput({city:'Сочи',budget:'30 000 000',area:'50,5'}).errors).length,0);
 });
-test('medians of five starting prices are correct',()=>{
-  assert.deepEqual(cityStats(records).map(r=>[r.city,r.median]),[['Москва',553300],['Сочи',365763],['Санкт-Петербург',497300]]);
+test('city minimum prices identify their actual source projects',()=>{
+  assert.deepEqual(cityStats(records).map(r=>[r.city,r.min,r.cheapest.id]),[['Москва',422000,'moscow-shagal'],['Сочи',290000,'sochi-yuzhny-park'],['Санкт-Петербург',348400,'spb-neva']]);
+  for(const stat of cityStats(records)) assert.equal(stat.min,stat.cheapest.priceFrom);
+  assert.ok(cityStats([]).every(r=>r.min===null&&r.max===null&&r.cheapest===null));
 });
