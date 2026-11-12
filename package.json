@@ -1,0 +1,14 @@
+{
+  "name": "novostroy-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "15 ЖК, проверяемые источники и веб-подборщик. Тестовое задание, трек А.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm test && npm run build"
+  }
+}

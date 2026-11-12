@@ -1,0 +1,17 @@
+import { readFile, writeFile, mkdir, copyFile, cp } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+const root = fileURLToPath(new URL('../', import.meta.url));
+const out = path.join(root,'dist');
+await mkdir(path.join(out,'data'),{recursive:true});
+await mkdir(path.join(out,'downloads'),{recursive:true});
+for(const file of ['index.html','style.css','app.mjs','matcher.mjs','favicon.svg']) await copyFile(path.join(root,'src',file),path.join(out,file));
+await cp(path.join(root,'src/fonts'),path.join(out,'fonts'),{recursive:true});
+await copyFile(path.join(root,'data/complexes.json'),path.join(out,'data/complexes.json'));
+const {records}=JSON.parse(await readFile(path.join(root,'data/complexes.json'),'utf8'));
+const headers=['Город','Название ЖК','Застройщик','Район','Класс','Цена от, ₽/м²','Срок сдачи','Ссылка на цену','Ссылка на срок','Дата источника','Что означает дата','Проверено','Тип проверки','Примечания','Ссылка на класс','Ссылка на застройщика'];
+const csv=[headers,...records.map(r=>[r.city,r.name,r.developer,r.district,r.class,r.priceFrom,r.delivery,r.sourceUrl,r.deliverySourceUrl||r.sourceUrl,r.sourceDate||'Не указана',r.dateMeaning,r.checkedAt,r.verification,r.notes,r.classSourceUrl||r.sourceUrl,r.developerSourceUrl||r.sourceUrl])].map(row=>row.map(value=>'"'+String(value).replaceAll('"','""')+'"').join(';')).join('\r\n');
+await writeFile(path.join(root,'research/complexes.csv'),'\uFEFF'+csv+'\r\n');
+await copyFile(path.join(root,'research/complexes.csv'),path.join(out,'downloads/complexes.csv'));
+for(const name of ['report.md','ai-work.md']) await copyFile(path.join(root,'docs',name),path.join(out,'downloads',name));
+console.log('Built: 15 records, CSV, app and documentation → dist/');
