@@ -32,7 +32,7 @@ test('numeric similarities use a real full price and symmetric area ratio',()=>{
 test('fixed weighted mean can be independently calculated without a trained estimator',()=>{
   const input=validateInput({city:'Москва',classFilter:'Бизнес',area:50,budget:10e6});
   const r=scoreComplex(record,input,null,null,{lots:[lot('a',45,12.5e6)]});
-  assert.ok(Math.abs(r.score-(32+9+2*.8+2*.9)/45)<1e-12);
+  assert.ok(Math.abs(r.score-(32+13+2*.8+2*.9)/49)<1e-12);
   assert.ok(r.deviations.some(x=>x.startsWith('Выше бюджета')));
 });
 test('the chosen apartment maximizes joint area and budget closeness, not a scaled starting rate',()=>{

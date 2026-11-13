@@ -1,5 +1,14 @@
 import {nearbyLots,selectApartment} from './apartment-prices.mjs?v=11';
 export const CITIES = ['Москва', 'Сочи', 'Санкт-Петербург'];
+export const DELIVERY_FILTERS = ['all','completed','2026','2027','2028','2029','2030'];
+
+// A deadline is inclusive. Partial commissioning does not mean the whole project is ready.
+export function deliverySimilarity(row,filter='all') {
+  if(filter==='all'||row.constructionStatus==='Сдан')return 1;
+  if(filter==='completed')return row.constructionStatus==='Частично сдан'?.5:0;
+  if(!Number.isInteger(row.deliveryYear))return 0;
+  return 1/(1+Math.max(0,row.deliveryYear-Number(filter)));
+}
 
 export function parseNumber(value) {
   if (typeof value === 'number') return value;
@@ -8,7 +17,7 @@ export function parseNumber(value) {
   return /^\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
 }
 
-export function validateInput({ city = 'all', budget = '', area = 50, query = '', classFilter = 'all', sort = 'price-asc' } = {}) {
+export function validateInput({ city = 'all', budget = '', area = 50, query = '', classFilter = 'all', deliveryFilter = 'all', sort = 'price-asc' } = {}) {
   const errors = {};
   const empty = value => value == null || typeof value === 'string' && value.trim() === '';
   const rubles = empty(budget) ? null : parseNumber(budget);
@@ -22,8 +31,9 @@ export function validateInput({ city = 'all', budget = '', area = 50, query = ''
   }
   if (rubles !== null && squareMeters === null) errors.area = 'Укажите площадь для расчёта бюджета.';
   if (!['all','Бизнес','Премиум'].includes(classFilter)) errors.classFilter = 'Выберите класс из списка.';
+  if (!DELIVERY_FILTERS.includes(deliveryFilter)) errors.deliveryFilter = 'Выберите срок сдачи из списка.';
   if (!['recommended','price-asc','price-desc','name'].includes(sort)) errors.sort = 'Выберите сортировку из списка.';
-  return { errors, city, budget: rubles, area: squareMeters, query: String(query).trim(), classFilter, sort };
+  return { errors, city, budget: rubles, area: squareMeters, query: String(query).trim(), classFilter, deliveryFilter, sort };
 }
 
 export function normalizeSearch(value) {
@@ -42,6 +52,7 @@ export function matchComplexes(records, input = {}, catalog = {lots:[]}) {
   const words = normalizeSearch(parsed.query).split(/\s+/).filter(Boolean);
   const candidates = records.filter(row => (parsed.city === 'all' || row.city === parsed.city)
     && (parsed.classFilter === 'all' || row.class === parsed.classFilter)
+    && deliverySimilarity(row,parsed.deliveryFilter)===1
     && words.every(word => normalizeSearch(`${row.name} ${row.developer} ${row.district} ${row.city}`).includes(word))).map(row => {
     const nearby=nearbyLots(catalog.lots,row.id,parsed.area);
     const selectedLot=selectApartment(catalog.lots,row.id,parsed.area,parsed.budget);

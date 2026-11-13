@@ -1,6 +1,6 @@
-import { initSearchUI } from './search-ui.mjs?v=9';
-import { validateInput, cityStats, CITIES } from './matcher.mjs?v=12';
-import { rankRecommendations } from './recommender.mjs?v=12';
+import { initSearchUI } from './search-ui.mjs?v=13';
+import { validateInput, cityStats, CITIES } from './matcher.mjs?v=13';
+import { rankRecommendations } from './recommender.mjs?v=13';
 import { semanticEncoder } from './semantic-encoder.mjs?v=8';
 
 const $ = selector => document.querySelector(selector);
@@ -30,7 +30,7 @@ function route() {
 }
 
 const cardNodes = new Map();
-const filterFields = { city:'city', budget:'budget', area:'area', classFilter:'class-filter' };
+const filterFields = { city:'city', budget:'budget', area:'area', classFilter:'class-filter', deliveryFilter:'delivery-filter' };
 let profiles = null, renderRevision = 0, renderTimer = null;
 
 function pendingResults() {
@@ -72,7 +72,7 @@ async function renderResults(focusError = false) {
   clearTimeout(renderTimer);
   const revision = ++renderRevision;
   const input = {city:$('#city').value,budget:$('#budget').value,area:$('#area').value,
-    query:$('#search').value,classFilter:$('#class-filter').value,sort:'recommended'};
+    query:$('#search').value,classFilter:$('#class-filter').value,deliveryFilter:$('#delivery-filter').value,sort:'recommended'};
   const parsed = validateInput(input);
   for (const [key,id] of Object.entries(filterFields)) {
     $(`#${id}-error`).textContent = parsed.errors[key] || '';
@@ -86,7 +86,10 @@ async function renderResults(focusError = false) {
     $('#result-status').textContent = 'Проверьте параметры фильтров.';
     $('#ranking-status').textContent = '';
     $('#result-cards').setAttribute('aria-busy','false');
-    if (focusError) $(`#${filterFields[invalid[0]]}`).focus();
+    if (focusError) {
+      if(['classFilter','deliveryFilter'].includes(invalid[0]))searchUI.openFilters();
+      $(`#${filterFields[invalid[0]]}`).focus();
+    }
     return;
   }
   let embedding = null, semanticFailure = false;
@@ -134,7 +137,7 @@ async function renderResults(focusError = false) {
   }
   $('#result-cards').setAttribute('aria-busy','false');
   const params = new URLSearchParams();
-  for (const [key,value] of Object.entries({city:result.city,budget:result.budget,area:result.area,query:result.query,classFilter:result.classFilter})) {
+  for (const [key,value] of Object.entries({city:result.city,budget:result.budget,area:result.area,query:result.query,classFilter:result.classFilter,deliveryFilter:result.deliveryFilter})) {
     if(value!==null && value!=='')params.set(key,String(value));
   }
   history.replaceState(null,'',`${location.pathname}?${params}${location.hash||'#selection'}`);

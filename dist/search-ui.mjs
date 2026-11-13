@@ -14,6 +14,7 @@ export function initSearchUI() {
     form.classList.toggle('has-highlight',Boolean(active&&segment));positionHighlight();
   }
   function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(update);}}
+  function openFilters(){panel.hidden=false;toggle.setAttribute('aria-expanded','true');update();}
   function closeFilters(restoreFocus=false){panel.hidden=true;toggle.setAttribute('aria-expanded','false');if(restoreFocus)toggle.focus();schedule();}
   form.addEventListener('focusin',event=>{segment=event.target.closest('.search-segment');update();});
   form.addEventListener('focusout',schedule);
@@ -25,5 +26,5 @@ export function initSearchUI() {
   const observer=new ResizeObserver(positionHighlight);observer.observe(form);
   for(const field of form.querySelectorAll('.search-segment'))observer.observe(field);
   window.addEventListener('resize',schedule);update();
-  return {update,closeFilters};
+  return {update,closeFilters,openFilters};
 }

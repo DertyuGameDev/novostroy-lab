@@ -1,9 +1,9 @@
-import {normalizeSearch,validateInput} from './matcher.mjs?v=12';
+import {normalizeSearch,validateInput,deliverySimilarity} from './matcher.mjs?v=13';
 import {AREA_TOLERANCE,usableLot} from './apartment-prices.mjs?v=12';
 
 // Fixed priorities. Never fitted to examples or normalized across candidates.
-// City outweighs other criteria combined; class outweighs text and numbers.
-export const SIMILARITY_WEIGHTS=Object.freeze({city:32,class:9,text:4,budget:2,area:2});
+// City outweighs other criteria combined; class outweighs text, delivery and numbers.
+export const SIMILARITY_WEIGHTS=Object.freeze({city:32,class:13,text:4,delivery:4,budget:2,area:2});
 const clamp=value=>Math.max(0,Math.min(1,value));
 export function dot(a,b){return a.reduce((sum,value,index)=>sum+value*b[index],0);}
 export function cosineSimilarity(a,b) {
@@ -32,6 +32,8 @@ export function scoreComplex(row,input,profile,queryEmbedding,catalog={lots:[]})
   const add=(criterion,value)=>components.push({criterion,value,weight:SIMILARITY_WEIGHTS[criterion]});
   if(input.city!=='all')add('city',Number(row.city===input.city));
   if(input.classFilter!=='all')add('class',Number(row.class===input.classFilter));
+  const deliveryScore=deliverySimilarity(row,input.deliveryFilter);
+  if(input.deliveryFilter!=='all')add('delivery',deliveryScore);
   const semanticScore=input.query?cosineSimilarity(queryEmbedding,profile?.embedding):null;
   const literalScore=lexicalSimilarity(input.query,row);
   if(input.query)add('text',literalScore===1?1:(semanticScore??literalScore));
@@ -42,6 +44,9 @@ export function scoreComplex(row,input,profile,queryEmbedding,catalog={lots:[]})
   const deviations=[];
   if(input.city!=='all'&&row.city!==input.city)deviations.push(`${row.city} вместо ${input.city}`);
   if(input.classFilter!=='all'&&row.class!==input.classFilter)deviations.push(`${row.class} вместо ${input.classFilter.toLocaleLowerCase('ru-RU')}`);
+  if(input.deliveryFilter!=='all'&&deliveryScore<1)deviations.push(input.deliveryFilter==='completed'
+    ? (row.constructionStatus==='Частично сдан'?'ЖК сдан частично':'ЖК ещё не сдан')
+    : (Number.isInteger(row.deliveryYear)?`Сдача позже ${input.deliveryFilter} года`:'Срок сдачи не подтверждён'));
   if(!selectedLot)deviations.push('Нет подтверждённой цены квартиры');
   else {
     if(input.budget!==null&&selectedLot.price>input.budget)deviations.push(`Выше бюджета на ${Math.ceil(selectedLot.price-input.budget).toLocaleString('ru-RU')} ₽`);
