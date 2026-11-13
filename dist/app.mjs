@@ -1,7 +1,7 @@
-import { initSearchUI } from './search-ui.mjs?v=7';
-import { validateInput, cityStats, CITIES } from './matcher.mjs?v=7';
-import { rankRecommendations } from './recommender.mjs?v=7';
-import { semanticEncoder } from './semantic-encoder.mjs?v=7';
+import { initSearchUI } from './search-ui.mjs?v=8';
+import { validateInput, cityStats, CITIES } from './matcher.mjs?v=8';
+import { rankRecommendations } from './recommender.mjs?v=8';
+import { semanticEncoder } from './semantic-encoder.mjs?v=8';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -46,7 +46,7 @@ function renderCard(row, area, rank, featured) {
   if(!node){
     node=document.createElement('article');node.className='complex-card';node.dataset.id=row.id;
     node.innerHTML=`<p class="card-label">${escape(row.city)} · ${escape(row.class)}</p><h3>${escape(row.name)}</h3><p class="district">${escape(row.district)}</p>
-      <p class="cost"><small>от</small> ${link(row.sourceUrl,number(row.priceFrom))} <small>₽/м²</small></p><p class="apartment-estimate"></p><p class="delivery">Сдача: ${link(row.deliverySourceUrl||row.sourceUrl,escape(row.delivery))}</p>
+      <p class="cost"><small>от</small> ${link(row.sourceUrl,number(row.priceFrom))} <small>₽/м²</small></p><p class="apartment-estimate"></p><p class="delivery">${escape(row.constructionStatus)} · ${link(row.deliverySourceUrl||row.sourceUrl,escape(row.delivery))}</p>
       <details class="profile-details"><summary>Подробнее</summary><p class="description"></p><p>Застройщик: ${escape(row.developer)}</p><p class="match-score"></p><p>Проверено: ${date(row.checkedAt)}. Дата источника: ${date(row.sourceDate)}.</p><p>${escape(row.notes)}</p><span class="profile-source"></span></details>`;
     cardNodes.set(row.id,node);
   }
@@ -154,7 +154,7 @@ function renderCatalog() {
     <td><span class="city-label">${escape(row.city)}</span><strong>${escape(row.name)}</strong><details><summary>Проверка и примечания</summary><p>${escape(row.notes)}</p><p>Проверено: ${date(row.checkedAt)}. ${row.verification === 'search-index' ? 'Использован поисковый снимок страницы.' : 'Страница открыта при исследовании.'}</p>${row.classSourceUrl ? link(row.classSourceUrl,'Источник класса ↗') : ''}${row.developerSourceUrl ? link(row.developerSourceUrl,'Источник застройщика ↗') : ''}</details></td>
     <td>${escape(row.developer)}</td><td>${escape(row.district)}</td><td><span class="badge">${escape(row.class)}</span></td>
     <td>${link(row.sourceUrl,number(row.priceFrom)+' ↗')}<small>${escape(row.sourceName)}</small></td>
-    <td>${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery)+' ↗')}</td>
+    <td>${escape(row.constructionStatus)}</td><td>${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery)+' ↗')}<small>${row.deliveryKind==='fact'?'Факт':'План'}. ${row.deliveryVerification==='search-index'?'Проверено по индексу. ':''}${escape(row.deliveryScope)}</small></td>
     <td>${date(row.sourceDate)}<small>${escape(row.dateMeaning)}</small></td></tr>`).join('');
 }
 
@@ -190,7 +190,7 @@ try {
   records = payload.records;
   try {
     const loadJson=async path=>{const response=await fetch(path);if(!response.ok)throw new Error(path);return response.json();};
-    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=7'),loadJson('./ml-assets/profiles.json?v=7')]);
+    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=8'),loadJson('./ml-assets/profiles.json?v=8')]);
     ranker=model;profiles=new Map(corpus.profiles.map(profile=>[profile.id,profile]));
   } catch(error) { console.warn('ML artifacts unavailable:',error.message); }
   const query = new URLSearchParams(location.search);

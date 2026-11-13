@@ -54,7 +54,7 @@ def feature_row(record, query, embedding, vector, budget, area, anchors):
     base = [float(embedding@vector) if query else 0., lexical(query,record),
         min(2.,record['priceFrom']*area/budget) if budget else 0.,
         float(np.log1p(record['priceFrom'])/np.log(10000001)), float(bool(budget)),
-        float(np.log1p(area)/np.log(1001)), float(record['delivery'].lower().startswith('сдан')), float(bool(query))]
+        float(np.log1p(area)/np.log(1001)), float(record['constructionStatus']=='Сдан'), float(bool(query))]
     for anchor in anchors.values():
         q=float(embedding@anchor) if query else 0.
         d=float(vector@anchor)

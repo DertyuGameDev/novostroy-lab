@@ -1,4 +1,4 @@
-import {matchComplexes,normalizeSearch,validateInput} from './matcher.mjs?v=7';
+import {matchComplexes,normalizeSearch,validateInput} from './matcher.mjs?v=8';
 
 export const TAG_LABELS={green:'Парк и озеленение',water:'У реки',sea:'Близость моря',family:'Детская инфраструктура',wellness:'Бассейн и SPA',heritage:'Историческое окружение',ready:'Сданный комплекс',terrace:'Террасы',sport:'Спортивные площадки',urban:'Городская инфраструктура',views:'Видовые квартиры'};
 export function dot(a,b){return a.reduce((sum,value,index)=>sum+value*b[index],0);}
@@ -11,7 +11,7 @@ export function featureVector(row,input,profile,queryEmbedding,model) {
   const hasQuery=Boolean(input.query);
   const features=[hasQuery&&queryEmbedding?dot(queryEmbedding,profile.embedding):0,lexical(input.query,row),
     input.budget?Math.min(2,row.priceFrom*input.area/input.budget):0,Math.log1p(row.priceFrom)/Math.log(10000001),
-    Number(Boolean(input.budget)),Math.log1p(input.area??50)/Math.log(1001),Number(row.delivery.toLocaleLowerCase('ru').startsWith('сдан')),Number(hasQuery)];
+    Number(Boolean(input.budget)),Math.log1p(input.area??50)/Math.log(1001),Number(row.constructionStatus==='Сдан'),Number(hasQuery)];
   for(const anchor of model.anchors) {
     const q=hasQuery&&queryEmbedding?dot(queryEmbedding,anchor.embedding):0;
     const d=dot(profile.embedding,anchor.embedding);

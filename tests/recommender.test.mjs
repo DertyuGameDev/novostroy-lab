@@ -26,6 +26,14 @@ test('JSON tree evaluation matches scikit-learn predictions',()=>{
 test('browser feature table matches the Python training pipeline',()=>{
   for(const fixture of fixtures.features){const row=records.find(r=>r.id===fixture.projectId);const actual=featureVector(row,fixture.input,profiles.get(row.id),fixture.queryEmbedding,model);assert.equal(actual.length,model.featureNames.length);for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i]-fixture.features[i])<2e-5,`${fixture.projectId} / ${model.featureNames[i]}`);}
 });
+test('completion feature uses structured status and is independent of the display label',()=>{
+  const q=fixtures.encoder[1],input={query:q.text,area:50,budget:null};
+  for(const row of records){
+    const actual=featureVector(row,input,profiles.get(row.id),q.embedding,model);
+    assert.equal(actual[6],Number(row.constructionStatus==='Сдан'));
+    assert.deepEqual(actual,featureVector({...row,delivery:'Любая подпись'},input,profiles.get(row.id),q.embedding,model));
+  }
+});
 test('one project has the same raw score alone, in the full catalog, and with extreme neighbours',()=>{
   const q=fixtures.encoder[1],input={query:q.text,sort:'recommended',area:50};
   const all=rankRecommendations(records,input,model,profiles,q.embedding);
