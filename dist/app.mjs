@@ -1,4 +1,4 @@
-import { initSearchUI } from './search-ui.mjs?v=8';
+import { initSearchUI } from './search-ui.mjs?v=9';
 import { validateInput, cityStats, CITIES } from './matcher.mjs?v=8';
 import { rankRecommendations } from './recommender.mjs?v=8';
 import { semanticEncoder } from './semantic-encoder.mjs?v=8';

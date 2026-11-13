@@ -5,12 +5,13 @@ export function initSearchUI() {
   function positionHighlight() {
     if(!segment)return;
     const box=segment.getBoundingClientRect(),parent=form.getBoundingClientRect();
-    for(const [key,value]of Object.entries({x:box.left-parent.left-1,width:box.width,y:box.top-parent.top-1,height:box.height}))highlight.style.setProperty(`--highlight-${key}`,`${value}px`);
+    for(const [key,value]of Object.entries({x:box.left-parent.left-form.clientLeft,width:box.width,y:box.top-parent.top-form.clientTop,height:box.height}))highlight.style.setProperty(`--highlight-${key}`,`${value}px`);
   }
   function update() {
     scheduled=false;const active=form.contains(document.activeElement);
     header.classList.toggle('is-compact',scrollY>80&&!active&&panel.hidden&&document.body.dataset.view==='selection');
-    form.classList.toggle('has-focus',active||!panel.hidden);positionHighlight();
+    form.classList.toggle('has-focus',active||!panel.hidden);
+    form.classList.toggle('has-highlight',Boolean(active&&segment));positionHighlight();
   }
   function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(update);}}
   function closeFilters(restoreFocus=false){panel.hidden=true;toggle.setAttribute('aria-expanded','false');if(restoreFocus)toggle.focus();schedule();}
