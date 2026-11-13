@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {rankRecommendations,featureVector,predictRanker,dot} from '../src/recommender.mjs';
+import {rankRecommendations,scoreComplex,featureVector,predictRanker,dot} from '../src/recommender.mjs';
 import {tokenize} from '../src/semantic-encoder.mjs';
 const json=async path=>JSON.parse(await readFile(new URL(path,import.meta.url),'utf8'));
 const {records}=await json('../data/complexes.json');
@@ -24,7 +24,38 @@ test('JSON tree evaluation matches scikit-learn predictions',()=>{
   for(const fixture of fixtures.ranker)assert.ok(Math.abs(predictRanker(fixture.features,model)-fixture.prediction)<1e-8);
 });
 test('browser feature table matches the Python training pipeline',()=>{
-  for(const fixture of fixtures.features){const row=records.find(r=>r.id===fixture.projectId);const actual=featureVector(row,fixture.input,profiles.get(row.id),fixture.queryEmbedding,model,records);assert.equal(actual.length,model.featureNames.length);for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i]-fixture.features[i])<2e-5,`${fixture.projectId} / ${model.featureNames[i]}`);}
+  for(const fixture of fixtures.features){const row=records.find(r=>r.id===fixture.projectId);const actual=featureVector(row,fixture.input,profiles.get(row.id),fixture.queryEmbedding,model);assert.equal(actual.length,model.featureNames.length);for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i]-fixture.features[i])<2e-5,`${fixture.projectId} / ${model.featureNames[i]}`);}
+});
+test('one project has the same raw score alone, in the full catalog, and with extreme neighbours',()=>{
+  const q=fixtures.encoder[1],input={query:q.text,sort:'recommended',area:50};
+  const all=rankRecommendations(records,input,model,profiles,q.embedding);
+  const find=(result,id)=>[...result.featured,...result.recommendations].find(row=>row.id===id);
+  const row=records.find(r=>r.id==='moscow-shagal');
+  const alone=rankRecommendations([row],input,model,profiles,q.embedding);
+  const extreme=records.map(r=>r.id===row.id?r:{...r,priceFrom:r.priceFrom*1000});
+  const changed=rankRecommendations(extreme,input,model,profiles,q.embedding);
+  const expected=scoreComplex(row,{...input,budget:null},profiles.get(row.id),q.embedding,model);
+  for(const result of [all,alone,changed]){
+    const actual=find(result,row.id);assert.equal(actual.score,expected.score);assert.equal(actual.rankScore,expected.score);
+    assert.equal(actual.score,predictRanker(actual.features,model));assert.ok(actual.score>0&&actual.score<1);
+  }
+});
+test('removing candidates with city and class filters changes no retained scores',()=>{
+  const q=fixtures.encoder[1],input={query:q.text,area:50,sort:'recommended'};
+  const all=rankRecommendations(records,input,model,profiles,q.embedding);
+  const scores=new Map([...all.featured,...all.recommendations].map(r=>[r.id,r.score]));
+  const filtered=rankRecommendations(records,{...input,city:'Москва',classFilter:'Премиум'},model,profiles,q.embedding);
+  for(const row of [...filtered.featured,...filtered.recommendations])assert.equal(row.score,scores.get(row.id));
+});
+test('higher semantic similarity or literal match cannot lower an individual score, other features fixed',()=>{
+  assert.equal(model.objective,'pointwise_similarity_regression');
+  for(const fixture of fixtures.ranker)for(const index of [0,1]){
+    let previous=-Infinity;
+    for(let step=0;step<=40;step++){
+      const features=[...fixture.features];features[index]=Math.fround(step/40);
+      const score=predictRanker(features,model);assert.ok(score>=previous-1e-12);previous=score;
+    }
+  }
 });
 test('three large cards and remaining recommendations have no duplicate IDs',()=>{
   const r=rankRecommendations(records,{sort:'recommended'},model,profiles);

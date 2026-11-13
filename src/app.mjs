@@ -1,6 +1,6 @@
-import { validateInput, cityStats, CITIES } from './matcher.mjs?v=5';
-import { rankRecommendations } from './recommender.mjs?v=5';
-import { semanticEncoder } from './semantic-encoder.mjs?v=5';
+import { validateInput, cityStats, CITIES } from './matcher.mjs?v=6';
+import { rankRecommendations } from './recommender.mjs?v=6';
+import { semanticEncoder } from './semantic-encoder.mjs?v=6';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -43,7 +43,7 @@ function renderCard(row, area, rank, featured) {
     node.innerHTML = `
       <div class="card-top"><span class="badge">${escape(row.class)}</span><span class="city-label">${escape(row.city)}</span><span class="rank"></span></div>
       <h3>${escape(row.name)}</h3><p class="district">${escape(row.district)} · ${escape(row.developer)}</p>
-      <p class="profile-summary"></p><ul class="reason-list" aria-label="Особенности варианта"></ul>
+      <p class="profile-summary"></p><ul class="reason-list" aria-label="Особенности варианта"></ul><p class="match-score"></p>
       <p class="cost"><span class="price-prefix">от</span> ${number(row.priceFrom)} <span class="price-unit">₽/м²</span></p>
       <div class="apartment-estimate"><span></span><strong></strong></div><p class="calculation"></p>
       <p class="delivery">Сдача: ${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery))}</p>
@@ -55,6 +55,11 @@ function renderCard(row, area, rank, featured) {
   node.classList.toggle('featured-card',featured);
   node.classList.toggle('recommendation-card',!featured);
   node.querySelector('.rank').textContent = featured ? `0${rank+1}` : '';
+  const score=node.querySelector('.match-score');
+  score.hidden=!$('#search').value.trim()||!Number.isFinite(row.score);
+  score.textContent=score.hidden?'':`Соответствие запросу: ${row.score.toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})} / 1`;
+  if(Number.isFinite(row.score))node.dataset.matchScore=String(row.score);
+  else delete node.dataset.matchScore;
   node.querySelector('.profile-summary').textContent = profile?.description || '';
   node.querySelector('.reason-list').innerHTML = (row.reasons || []).map(reason=>`<li>${escape(reason)}</li>`).join('');
   node.querySelector('.apartment-estimate span').textContent = area === null ? 'Расчёт стоимости' : `Квартира ${number(area)} м²`;
@@ -197,7 +202,7 @@ try {
   records = payload.records;
   try {
     const loadJson=async path=>{const response=await fetch(path);if(!response.ok)throw new Error(path);return response.json();};
-    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json'),loadJson('./ml-assets/profiles.json')]);
+    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=6'),loadJson('./ml-assets/profiles.json?v=6')]);
     ranker=model;profiles=new Map(corpus.profiles.map(profile=>[profile.id,profile]));
   } catch(error) { console.warn('ML artifacts unavailable:',error.message); }
   const query = new URLSearchParams(location.search);

@@ -1,4 +1,4 @@
-"""Reproducible starter ranker. All preference labels below are SYNTHETIC."""
+"""Pointwise relevance regression. Every label is a SYNTHETIC query/project score."""
 import csv
 import hashlib
 import json
@@ -7,13 +7,13 @@ import re
 import numpy as np
 import onnxruntime as ort
 from transformers import AutoTokenizer
-from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupShuffleSplit
-from sklearn.metrics import ndcg_score, mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = 42
-BASE_FEATURES = ['semantic_cosine','lexical_match','budget_utilization','city_price_position','has_budget','area_normalized','completed','has_query']
+BASE_FEATURES = ['semantic_cosine','lexical_match','budget_utilization','price_log','has_budget','area_normalized','completed','has_query']
 ANCHORS = {
  'green':'парк, зелень, деревья, сад и прогулочные аллеи',
  'water':'берег реки, вода, прогулочная набережная',
@@ -50,11 +50,10 @@ def lexical(query, record):
     hay=normal(' '.join(str(record[k]) for k in ['name','developer','district','city']))
     return sum(word in hay for word in words)/len(words) if words else 0.
 
-def feature_row(record, query, embedding, vector, budget, area, city_ranges, anchors):
-    lo,hi=city_ranges[record['city']]
+def feature_row(record, query, embedding, vector, budget, area, anchors):
     base = [float(embedding@vector) if query else 0., lexical(query,record),
         min(2.,record['priceFrom']*area/budget) if budget else 0.,
-        (record['priceFrom']-lo)/max(1,hi-lo), float(bool(budget)),
+        float(np.log1p(record['priceFrom'])/np.log(10000001)), float(bool(budget)),
         float(np.log1p(area)/np.log(1001)), float(record['delivery'].lower().startswith('сдан')), float(bool(query))]
     for anchor in anchors.values():
         q=float(embedding@anchor) if query else 0.
@@ -64,12 +63,13 @@ def feature_row(record, query, embedding, vector, budget, area, city_ranges, anc
 
 def export_model(model):
     trees=[]
-    for entry in model.estimators_[:,0]:
+    for entry in model.estimators_:
         tree=entry.tree_
         trees.append({'feature':tree.feature.tolist(),'threshold':tree.threshold.tolist(),'left':tree.children_left.tolist(),
             'right':tree.children_right.tolist(),'value':tree.value[:,0,0].tolist()})
-    return {'schemaVersion':1,'type':'GradientBoostingRegressor','featureNames':FEATURES,'init':float(model.init_.constant_[0,0]),
-        'learningRate':model.learning_rate,'trees':trees,'featureImportances':dict(zip(FEATURES,model.feature_importances_.tolist())),
+    return {'schemaVersion':2,'type':'RandomForestRegressor','objective':'pointwise_similarity_regression','featureNames':FEATURES,'init':0.,
+        'learningRate':1./len(trees),'trees':trees,'featureImportances':dict(zip(FEATURES,model.feature_importances_.tolist())),
+        'scoreRange':[0,1],'monotonicConstraints':model.monotonic_cst,
         'labelSource':'synthetic_scenarios_not_user_preferences','seed':SEED}
 
 def main():
@@ -90,7 +90,6 @@ def main():
     intents += [{'group':'no-query','query':'','tag':None,'target':None}]
     vectors={item['query']:embed(item['query']) if item['query'] else np.zeros(312,dtype=np.float32) for item in intents}
     anchors={tag:embed(text) for tag,text in ANCHORS.items()}
-    ranges={city:(min(r['priceFrom'] for r in records if r['city']==city),max(r['priceFrom'] for r in records if r['city']==city)) for city in {r['city'] for r in records}}
     rows=[];groups=[];scenarios={}
     for intent in intents:
         for i in range(64):
@@ -100,16 +99,17 @@ def main():
             budget=None if i%4==0 else float(rng.choice([12,18,25,30,40,55,80])*1e6)
             selected=[r for r in records if (city=='all' or r['city']==city) and (cls=='all' or r['class']==cls)
                 and (budget is None or r['priceFrom']*area<=budget)]
-            if len(selected)<2: continue
+            if not selected: continue
             sid=f'{intent["group"]}/{i}'
             indices=[]
             for r in selected:
-                f=feature_row(r,intent['query'],vectors[intent['query']],doc_vectors[r['id']],budget,area,ranges,anchors)
-                if intent['tag']=='named': grade=3. if r['id']==intent['target'] else 0.
-                elif intent['tag']=='premium': grade=3. if r['class']=='Премиум' else 0.
-                else: grade=3. if intent['tag'] in by_id[r['id']]['tags'] else 0.
-                # Explicit synthetic relevance rubric; these are not observed choices.
-                label=grade + .45*max(0,f[0]) + .55*f[1] + .6*(1-f[3]) + (.3*(1-f[2]) if budget else 0.)
+                f=feature_row(r,intent['query'],vectors[intent['query']],doc_vectors[r['id']],budget,area,anchors)
+                if intent['tag']=='named': grade=float(r['id']==intent['target'])
+                elif intent['tag']=='premium': grade=float(r['class']=='Премиум')
+                else: grade=float(intent['tag'] in by_id[r['id']]['tags'])
+                # An absolute label for this pair. No relative prices, ranks, or neighbours.
+                # Empty text: neutral similarity; no preference among eligible projects.
+                label=.55*max(0.,min(1.,f[0]))+.30*grade+.15*f[1] if intent['query'] else 0.
                 rows.append({'scenario':sid,'group':intent['group'],'projectId':r['id'],'query':intent['query'],
                     'city':city,'classFilter':cls,'budget':budget,'area':area,'labelSource':'synthetic',
                     **dict(zip(FEATURES,f)),'label':label})
@@ -121,32 +121,23 @@ def main():
     development,test=next(split.split(X,y,groups))
     train_sub,validation_sub=next(GroupShuffleSplit(n_splits=1,test_size=.25,random_state=20261113).split(X[development],y[development],np.asarray(groups)[development]))
     train,validation=development[train_sub],development[validation_sub]
-    model=GradientBoostingRegressor(n_estimators=160,max_depth=3,min_samples_leaf=20,learning_rate=.05,random_state=SEED)
+    # Increasing cosine or literal match alone cannot decrease the prediction.
+    constraints=[1,1]+[0]*(len(FEATURES)-2)
+    model=RandomForestRegressor(n_estimators=160,max_depth=8,min_samples_leaf=20,
+        monotonic_cst=constraints,n_jobs=2,random_state=SEED)
     model.fit(X[train],y[train])
     prediction=model.predict(X)
-    test_set=set(test.tolist())
-    val_set=set(validation.tolist())
-    def metric(scores, selected=test_set):
-        return float(np.mean([ndcg_score([y[idx]],[scores[idx]],k=3) for idx in scenarios.values() if idx[0] in selected]))
-    def normalize_scenarios(scores):
-        normalized=np.zeros(len(scores))
-        for idx in scenarios.values():
-            values=scores[idx]; delta=values.max()-values.min()
-            normalized[idx]=(values-values.min())/delta if delta>1e-9 else 0.
-        return normalized
-    semantic=normalize_scenarios(X[:,0]);ml=normalize_scenarios(prediction)
-    # Blend selection uses only validation groups. The test set is untouched.
-    trials={str(alpha):metric(alpha*ml+(1-alpha)*semantic,val_set) for alpha in [.15,.3,.5,.7,1.]}
-    alpha=float(max(trials,key=trials.get))
-    mixed=alpha*ml+(1-alpha)*semantic
-    base_model=GradientBoostingRegressor(n_estimators=160,max_depth=3,min_samples_leaf=20,learning_rate=.05,random_state=SEED).fit(X[train,:8],y[train])
+    def metric(indices):
+        return {'mae':float(mean_absolute_error(y[indices],prediction[indices])),
+            'rmse':float(np.sqrt(mean_squared_error(y[indices],prediction[indices]))),
+            'r2':float(r2_score(y[indices],prediction[indices]))}
     metrics={'labelSource':'synthetic_scenarios_not_real_users','split':'GroupShuffleSplit by complete query-template group; numeric variants stay together',
         'seed':SEED,'rows':len(rows),'scenarios':len(scenarios),'trainRows':len(train),'validationRows':len(validation),'testRows':len(test),
         'trainGroups':sorted(set(np.asarray(groups)[train])),'testGroups':sorted(set(np.asarray(groups)[test])),
         'validationGroups':sorted(set(np.asarray(groups)[validation])),
-        'ndcgAt3':metric(mixed),'mlOnlyNdcgAt3':metric(prediction),'eightFeatureAblationNdcgAt3':metric(base_model.predict(X[:,:8])),
-        'semanticOnlyNdcgAt3':metric(X[:,0]),'priceOnlyNdcgAt3':metric(-X[:,3]),'blendAlpha':alpha,'validationBlendTrials':trials,
-        'mae':float(mean_absolute_error(y[test],prediction[test])),
+        'objective':'independent_query_project_similarity_0_to_1','model':'RandomForestRegressor',
+        'test':metric(test),'validation':metric(validation),
+        'monotonicFeatures':['semantic_cosine','lexical_match'],
         'meaning':'Measures reproduction of the documented synthetic rubric, not recommendation quality for actual buyers.'}
     assert not set(metrics['trainGroups']) & set(metrics['testGroups'])
     assert not set(metrics['trainGroups']) & set(metrics['validationGroups'])
@@ -154,14 +145,13 @@ def main():
     target=ROOT/'src/ml-assets'
     model_json=export_model(model)
     model_json['anchors']=[{'tag':tag,'text':ANCHORS[tag],'embedding':vec.tolist()} for tag,vec in anchors.items()]
-    model_json['blendAlpha']=alpha
     (target/'ranker.json').write_text(json.dumps(model_json,ensure_ascii=False,separators=(',',':'))+'\n')
     corpus={'schemaVersion':1,'encoderSha256':encoder_meta['sha256'],'dimension':312,'profiles':[
         {**by_id[r['id']],'text':documents[r['id']],'embedding':doc_vectors[r['id']].tolist()} for r in records]}
     (target/'profiles.json').write_text(json.dumps(corpus,ensure_ascii=False,separators=(',',':'))+'\n')
     (ROOT/'ml/metrics.json').write_text(json.dumps(metrics,ensure_ascii=False,indent=2)+'\n')
     with (ROOT/'ml/training-features.csv').open('w',newline='') as file:
-        writer=csv.DictWriter(file,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
+        writer=csv.DictWriter(file,fieldnames=list(rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(rows)
     # Browser/Python parity fixtures use texts, token ids, embeddings and true estimator outputs.
     fixtures=[]
     for text in ['Шагал','Жить у воды рядом с парком','квартира для семьи с детьми']:
@@ -172,7 +162,7 @@ def main():
     for query,budget,area in [('дом у реки',30000000,50),('',None,80)]:
         embedding=embed(query) if query else np.zeros(312,dtype=np.float32)
         for r in records[:3]:
-            feature=feature_row(r,query,embedding,doc_vectors[r['id']],budget,area,ranges,anchors)
+            feature=feature_row(r,query,embedding,doc_vectors[r['id']],budget,area,anchors)
             features_parity.append({'projectId':r['id'],'input':{'query':query,'budget':budget,'area':area},'queryEmbedding':embedding.tolist(),'features':np.asarray(feature,dtype=np.float32).tolist()})
     (ROOT/'ml/parity-fixtures.json').write_text(json.dumps({'encoder':fixtures,'ranker':parity,'features':features_parity},ensure_ascii=False,separators=(',',':'))+'\n')
     report={k:v for k,v in metrics.items() if k not in ['trainGroups','testGroups','validationGroups']}
