@@ -29,11 +29,30 @@ test('numeric similarities use a real full price and symmetric area ratio',()=>{
   assert.equal(budgetSimilarity(10e6,8e6),1);assert.equal(budgetSimilarity(10e6,12.5e6),.8);
   assert.equal(budgetSimilarity(10e6,undefined),0);
 });
+test('price similarity is one inside both inclusive bounds and falls on either side',()=>{
+  assert.equal(budgetSimilarity(30e6,10e6,10e6),1);
+  assert.equal(budgetSimilarity(30e6,30e6,10e6),1);
+  assert.equal(budgetSimilarity(30e6,5e6,10e6),.5);
+  assert.equal(budgetSimilarity(30e6,60e6,10e6),.5);
+  assert.equal(budgetSimilarity(null,5e6,10e6),.5);
+  assert.equal(budgetSimilarity(null,20e6,10e6),1);
+});
+test('both price bounds affect the chosen real lot without excluding projects',()=>{
+  const sample={lots:[lot('cheap',50,10e6),lot('inside',50,25e6),lot('high',50,50e6)]};
+  const input={area:50,priceFrom:20e6,priceTo:30e6};
+  const selected=rankRecommendations([record],input,null,null,sample).featured[0];
+  assert.equal(selected.selectedLot.id,'inside');assert.equal(selected.estimatedPrice,25e6);
+  const result=rankRecommendations(records,{area:50,priceFrom:1e9,priceTo:2e9},profiles,null,catalog);
+  assert.equal(result.total,15);assert.equal(result.featured.length,3);assert.equal(result.recommendations.length,12);
+  assert.ok(all(result).every(r=>r.deviations.some(d=>d.startsWith('Ниже диапазона'))));
+  const alone=rankRecommendations([records[0]],{area:50,priceFrom:1e9,priceTo:2e9},profiles,null,catalog).featured[0];
+  assert.equal(alone.score,all(result).find(r=>r.id===alone.id).score);
+});
 test('fixed weighted mean can be independently calculated without a trained estimator',()=>{
   const input=validateInput({city:'Москва',classFilter:'Бизнес',area:50,budget:10e6});
   const r=scoreComplex(record,input,null,null,{lots:[lot('a',45,12.5e6)]});
   assert.ok(Math.abs(r.score-(32+13+2*.8+2*.9)/49)<1e-12);
-  assert.ok(r.deviations.some(x=>x.startsWith('Выше бюджета')));
+  assert.ok(r.deviations.some(x=>x.startsWith('Выше диапазона')));
 });
 test('the chosen apartment maximizes joint area and budget closeness, not a scaled starting rate',()=>{
   const input=validateInput({area:50,budget:15e6});
@@ -61,7 +80,7 @@ test('three largest and twelve smaller cards always retain every candidate witho
 test('nonmatching filters are explicit deviations rather than silently disappearing candidates',()=>{
   const r=rank(records,{city:'Сочи',classFilter:'Премиум',budget:1,area:10});
   for(const row of all(r)){
-    assert.ok(row.deviations.some(x=>x.startsWith('Выше бюджета')));
+    assert.ok(row.deviations.some(x=>x.startsWith('Выше диапазона')));
     if(row.city!=='Сочи')assert.ok(row.deviations.includes(`${row.city} вместо Сочи`));
     assert.ok(row.selectedLot.area!==10);assert.equal(row.estimatedPrice,row.selectedLot.price);
   }

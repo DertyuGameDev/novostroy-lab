@@ -1,4 +1,4 @@
-import {nearbyLots,selectApartment} from './apartment-prices.mjs?v=11';
+import {nearbyLots,selectApartment} from './apartment-prices.mjs?v=14';
 export const CITIES = ['Москва', 'Сочи', 'Санкт-Петербург'];
 export const DELIVERY_FILTERS = ['all','completed','2026','2027','2028','2029','2030'];
 
@@ -17,23 +17,25 @@ export function parseNumber(value) {
   return /^\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
 }
 
-export function validateInput({ city = 'all', budget = '', area = 50, query = '', classFilter = 'all', deliveryFilter = 'all', sort = 'price-asc' } = {}) {
+export function validateInput({ city = 'all', budget = '', priceFrom = '', priceTo = budget, area = 50, query = '', classFilter = 'all', deliveryFilter = 'all', sort = 'price-asc' } = {}) {
   const errors = {};
   const empty = value => value == null || typeof value === 'string' && value.trim() === '';
-  const rubles = empty(budget) ? null : parseNumber(budget);
+  const lower = empty(priceFrom) ? null : parseNumber(priceFrom);
+  const rublesFrom = lower===0?null:lower;
+  const rubles = empty(priceTo) ? null : parseNumber(priceTo);
   const squareMeters = empty(area) ? null : parseNumber(area);
   if (city !== 'all' && !CITIES.includes(city)) errors.city = 'Выберите город из списка.';
-  if (rubles !== null && (!Number.isFinite(rubles) || rubles <= 0 || rubles > 1e12)) {
-    errors.budget = 'Введите бюджет больше нуля, до 1 трлн ₽.';
-  }
+  if (rublesFrom !== null && (!Number.isFinite(rublesFrom) || rublesFrom < 0 || rublesFrom > 1e12)) errors.priceFrom = 'Введите цену «от» от 0 до 1 трлн ₽.';
+  if (rubles !== null && (!Number.isFinite(rubles) || rubles <= 0 || rubles > 1e12)) errors.priceTo = 'Введите цену «до» больше нуля, до 1 трлн ₽.';
+  if (Number.isFinite(rublesFrom)&&Number.isFinite(rubles)&&rublesFrom>rubles) errors.priceTo = 'Цена «до» должна быть не меньше цены «от».';
   if (squareMeters !== null && (!Number.isFinite(squareMeters) || squareMeters < 1 || squareMeters > 1000)) {
     errors.area = 'Введите площадь от 1 до 1 000 м².';
   }
-  if (rubles !== null && squareMeters === null) errors.area = 'Укажите площадь для расчёта бюджета.';
+  if ((rubles !== null||rublesFrom!==null) && squareMeters === null) errors.area = 'Укажите желаемую площадь.';
   if (!['all','Бизнес','Премиум'].includes(classFilter)) errors.classFilter = 'Выберите класс из списка.';
   if (!DELIVERY_FILTERS.includes(deliveryFilter)) errors.deliveryFilter = 'Выберите срок сдачи из списка.';
   if (!['recommended','price-asc','price-desc','name'].includes(sort)) errors.sort = 'Выберите сортировку из списка.';
-  return { errors, city, budget: rubles, area: squareMeters, query: String(query).trim(), classFilter, deliveryFilter, sort };
+  return { errors, city, budget: rubles, priceFrom:rublesFrom, priceTo:rubles, area: squareMeters, query: String(query).trim(), classFilter, deliveryFilter, sort };
 }
 
 export function normalizeSearch(value) {
@@ -55,14 +57,14 @@ export function matchComplexes(records, input = {}, catalog = {lots:[]}) {
     && deliverySimilarity(row,parsed.deliveryFilter)===1
     && words.every(word => normalizeSearch(`${row.name} ${row.developer} ${row.district} ${row.city}`).includes(word))).map(row => {
     const nearby=nearbyLots(catalog.lots,row.id,parsed.area);
-    const selectedLot=selectApartment(catalog.lots,row.id,parsed.area,parsed.budget);
+    const selectedLot=selectApartment(catalog.lots,row.id,parsed.area,parsed.priceTo,parsed.priceFrom);
     return {...row,selectedLot,estimatedPrice:selectedLot?.price??null,
-      matchingLotCount:nearby.filter(lot=>parsed.budget===null||lot.price<=parsed.budget).length,
+      matchingLotCount:nearby.filter(lot=>(parsed.priceTo===null||lot.price<=parsed.priceTo)&&(parsed.priceFrom===null||lot.price>=parsed.priceFrom)).length,
       minimumApartmentPrice:nearby.length?Math.min(...nearby.map(lot=>lot.price)):null};
   });
   const known=candidates.map(row=>row.minimumApartmentPrice).filter(Number.isFinite);
   const minimumBudget=known.length?Math.min(...known):null;
-  const matches = candidates.filter(row => parsed.budget === null || row.selectedLot!==null).sort((a,b) => {
+  const matches = candidates.filter(row => parsed.priceTo === null&&parsed.priceFrom===null || row.selectedLot!==null).sort((a,b) => {
     const byName = a.name.localeCompare(b.name,'ru');
     if (parsed.sort === 'name') return byName;
     return compareApartmentUnitPrice(a,b,parsed.sort==='price-desc'?-1:1)||byName;

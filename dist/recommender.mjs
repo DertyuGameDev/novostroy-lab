@@ -1,5 +1,5 @@
-import {normalizeSearch,validateInput,deliverySimilarity} from './matcher.mjs?v=13';
-import {AREA_TOLERANCE,usableLot} from './apartment-prices.mjs?v=12';
+import {normalizeSearch,validateInput,deliverySimilarity} from './matcher.mjs?v=14';
+import {AREA_TOLERANCE,usableLot} from './apartment-prices.mjs?v=14';
 
 // Fixed priorities. Never fitted to examples or normalized across candidates.
 // City outweighs other criteria combined; class outweighs text, delivery and numbers.
@@ -17,12 +17,17 @@ export function lexicalSimilarity(query,row) {
   return words.length?words.filter(word=>hay.includes(word)).length/words.length:0;
 }
 export const areaSimilarity=(desired,actual)=>Number.isFinite(actual)&&actual>0?Math.min(desired,actual)/Math.max(desired,actual):0;
-export const budgetSimilarity=(limit,price)=>Number.isFinite(price)&&price>0?Math.min(1,limit/price):0;
+export function budgetSimilarity(limit,price,minimum=null) {
+  if(!Number.isFinite(price)||price<=0)return 0;
+  if(minimum!==null&&price<minimum)return price/minimum;
+  if(limit!==null&&price>limit)return limit/price;
+  return 1;
+}
 
 export function closestApartment(lots,projectId,input) {
   const candidates=lots.filter(lot=>lot.projectId===projectId&&usableLot(lot));
   const score=lot=>(input.area===null?0:SIMILARITY_WEIGHTS.area*areaSimilarity(input.area,lot.area))
-    +(input.budget===null?0:SIMILARITY_WEIGHTS.budget*budgetSimilarity(input.budget,lot.price));
+    +(input.priceFrom===null&&input.priceTo===null?0:SIMILARITY_WEIGHTS.budget*budgetSimilarity(input.priceTo,lot.price,input.priceFrom));
   return candidates.sort((a,b)=>score(b)-score(a)||a.price-b.price||a.id.localeCompare(b.id))[0]||null;
 }
 
@@ -37,7 +42,7 @@ export function scoreComplex(row,input,profile,queryEmbedding,catalog={lots:[]})
   const semanticScore=input.query?cosineSimilarity(queryEmbedding,profile?.embedding):null;
   const literalScore=lexicalSimilarity(input.query,row);
   if(input.query)add('text',literalScore===1?1:(semanticScore??literalScore));
-  if(input.budget!==null)add('budget',budgetSimilarity(input.budget,selectedLot?.price));
+  if(input.priceFrom!==null||input.priceTo!==null)add('budget',budgetSimilarity(input.priceTo,selectedLot?.price,input.priceFrom));
   if(input.area!==null)add('area',areaSimilarity(input.area,selectedLot?.area));
   const weight=components.reduce((sum,item)=>sum+item.weight,0);
   const score=weight?components.reduce((sum,item)=>sum+item.value*item.weight,0)/weight:1;
@@ -49,7 +54,8 @@ export function scoreComplex(row,input,profile,queryEmbedding,catalog={lots:[]})
     : (Number.isInteger(row.deliveryYear)?`Сдача позже ${input.deliveryFilter} года`:'Срок сдачи не подтверждён'));
   if(!selectedLot)deviations.push('Нет подтверждённой цены квартиры');
   else {
-    if(input.budget!==null&&selectedLot.price>input.budget)deviations.push(`Выше бюджета на ${Math.ceil(selectedLot.price-input.budget).toLocaleString('ru-RU')} ₽`);
+    if(input.priceTo!==null&&selectedLot.price>input.priceTo)deviations.push(`Выше диапазона на ${Math.ceil(selectedLot.price-input.priceTo).toLocaleString('ru-RU')} ₽`);
+    if(input.priceFrom!==null&&selectedLot.price<input.priceFrom)deviations.push(`Ниже диапазона на ${Math.ceil(input.priceFrom-selectedLot.price).toLocaleString('ru-RU')} ₽`);
     if(input.area!==null&&Math.abs(selectedLot.area-input.area)>input.area*AREA_TOLERANCE+1e-9)
       deviations.push(`${selectedLot.area.toLocaleString('ru-RU')} м² вместо ${input.area.toLocaleString('ru-RU')} м²`);
   }

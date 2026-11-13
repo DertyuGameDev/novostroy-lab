@@ -58,6 +58,18 @@ test('Russian decimals and thousands spaces accepted, ambiguous input rejected',
   assert.equal(parseNumber(' 30\u00a0000\u202f000 '),30e6);assert.equal(parseNumber('50,5'),50.5);
   for(const value of ['','1e7','12abc','1,2,3','-10','0x100']) assert.ok(Number.isNaN(parseNumber(value)));
 });
+test('price range supports each open end, exact boundaries, Russian input and old budget links',()=>{
+  const parsed=validateInput({priceFrom:'10 000 000',priceTo:'30 000 000,50'});
+  assert.equal(parsed.priceFrom,10e6);assert.equal(parsed.priceTo,30000000.5);assert.deepEqual(parsed.errors,{});
+  assert.equal(validateInput({priceFrom:'0',priceTo:''}).priceFrom,null);
+  assert.equal(validateInput({priceFrom:10e6}).priceTo,null);
+  assert.equal(validateInput({budget:30e6}).priceTo,30e6);
+  assert.equal(validateInput({budget:30e6,priceTo:40e6}).priceTo,40e6);
+  assert.deepEqual(validateInput({priceFrom:30e6,priceTo:30e6}).errors,{});
+  for(const input of [{priceFrom:40e6,priceTo:30e6},{priceFrom:'oops'},{priceTo:'-1'},{priceTo:0},{priceFrom:Infinity},{priceFrom:1e13}])assert.ok(Object.keys(validateInput(input).errors).length);
+  const result=matchComplexes(records,{priceFrom:30e6,priceTo:40e6,area:50});
+  assert.ok(result.total>0);assert.ok(result.matches.every(r=>r.selectedLot.price>=30e6&&r.selectedLot.price<=40e6));
+});
 test('invalid inputs cannot produce results',()=>{
   for(const input of [{city:'Казань',budget:30e6,area:50},{city:'Москва',budget:Infinity,area:50},{city:'Москва',budget:0,area:50},{city:'Москва',budget:30e6,area:NaN},{city:'Москва',budget:30e6,area:1001}]){
     const r=matchComplexes(records,input);assert.ok(Object.keys(r.errors).length);assert.equal(r.matches.length,0);

@@ -5,6 +5,7 @@
 | Что | Файл / папка |
 | --- | --- |
 | Расчёт итогового скора, косинус, выбор лота | [src/recommender.mjs](../src/recommender.mjs) |
+| Интерфейс диапазона цены (не ML) | [src/price-range.mjs](../src/price-range.mjs) |
 | Признак срока сдачи и проверка фильтров | [src/matcher.mjs](../src/matcher.mjs) |
 | Токенизация, загрузка и запуск RuBERT в браузере | [src/semantic-encoder.mjs](../src/semantic-encoder.mjs) |
 | Веса ONNX, метаданные, словарь и эмбеддинги ЖК | [src/ml-assets/](../src/ml-assets/) |

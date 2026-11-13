@@ -13,8 +13,8 @@ export function nearbyLots(lots,projectId,area) {
   return lots.filter(lot=>lot.projectId===projectId&&usableLot(lot)
     &&(area===null||area===undefined||Math.abs(lot.area-area)<=area*AREA_TOLERANCE+1e-9));
 }
-export function selectApartment(lots,projectId,area,budget=null) {
-  return nearbyLots(lots,projectId,area).filter(lot=>budget===null||lot.price<=budget)
+export function selectApartment(lots,projectId,area,budget=null,priceFrom=null) {
+  return nearbyLots(lots,projectId,area).filter(lot=>(budget===null||lot.price<=budget)&&(priceFrom===null||lot.price>=priceFrom))
     .sort((a,b)=>(area==null?0:Math.abs(a.area-area)-Math.abs(b.area-area))||a.price-b.price||a.id.localeCompare(b.id))[0]||null;
 }
 export function summarizeAreaPrices(records,catalog) {

@@ -7,7 +7,7 @@ const out = path.join(root,'dist');
 await mkdir(path.join(out,'data'),{recursive:true});
 await mkdir(path.join(out,'downloads'),{recursive:true});
 for(const file of ['downloads/complexes.xlsx','downloads/apartment-prices.xlsx','downloads/complexes.csv','downloads/complexes-plain.csv','downloads/ml-metrics.json','ml-assets/ranker.json'])await rm(path.join(out,file),{force:true});
-for(const file of ['index.html','style.css','app.mjs','search-ui.mjs','matcher.mjs','recommender.mjs','apartment-prices.mjs','semantic-encoder.mjs','favicon.svg']) await copyFile(path.join(root,'src',file),path.join(out,file));
+for(const file of ['index.html','style.css','app.mjs','search-ui.mjs','price-range.mjs','matcher.mjs','recommender.mjs','apartment-prices.mjs','semantic-encoder.mjs','favicon.svg']) await copyFile(path.join(root,'src',file),path.join(out,file));
 await cp(path.join(root,'src/fonts'),path.join(out,'fonts'),{recursive:true});
 await cp(path.join(root,'src/ml-assets'),path.join(out,'ml-assets'),{recursive:true});
 await cp(path.join(root,'src/vendor'),path.join(out,'vendor'),{recursive:true});

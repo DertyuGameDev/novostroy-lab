@@ -1,6 +1,7 @@
-import { initSearchUI } from './search-ui.mjs?v=13';
-import { validateInput, cityStats, CITIES } from './matcher.mjs?v=13';
-import { rankRecommendations } from './recommender.mjs?v=13';
+import { initSearchUI } from './search-ui.mjs?v=14';
+import { initPriceRange } from './price-range.mjs?v=14';
+import { validateInput, cityStats, CITIES } from './matcher.mjs?v=14';
+import { rankRecommendations } from './recommender.mjs?v=14';
 import { semanticEncoder } from './semantic-encoder.mjs?v=8';
 
 const $ = selector => document.querySelector(selector);
@@ -11,6 +12,7 @@ const date = value => value ? value.split('-').reverse().join('.') : 'Не ук�
 const link = (url, text, className = '') => `<a class="${className}" href="${escape(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 let records = [], apartmentCatalog={lots:[],projects:[]};
 const searchUI = initSearchUI();
+const priceUI = initPriceRange();
 
 function route() {
   const id = location.hash.slice(1) || 'selection';
@@ -22,7 +24,7 @@ function route() {
   }
   if(id!==selected)history.replaceState(null,'',`${location.pathname}${location.search}#${selected}`);
   document.body.dataset.view=selected;
-  searchUI.closeFilters();
+  searchUI.closePanels();
   for(const menu of document.querySelectorAll('.materials-menu'))menu.open=false;
   searchUI.update();
   window.scrollTo(0,0);
@@ -30,7 +32,7 @@ function route() {
 }
 
 const cardNodes = new Map();
-const filterFields = { city:'city', budget:'budget', area:'area', classFilter:'class-filter', deliveryFilter:'delivery-filter' };
+const filterFields = { city:'city', priceFrom:'price-from', priceTo:'price-to', area:'area', classFilter:'class-filter', deliveryFilter:'delivery-filter' };
 let profiles = null, renderRevision = 0, renderTimer = null;
 
 function pendingResults() {
@@ -71,7 +73,7 @@ function renderCard(row, area, rank, featured) {
 async function renderResults(focusError = false) {
   clearTimeout(renderTimer);
   const revision = ++renderRevision;
-  const input = {city:$('#city').value,budget:$('#budget').value,area:$('#area').value,
+  const input = {city:$('#city').value,priceFrom:$('#price-from').value,priceTo:$('#price-to').value,area:$('#area').value,
     query:$('#search').value,classFilter:$('#class-filter').value,deliveryFilter:$('#delivery-filter').value,sort:'recommended'};
   const parsed = validateInput(input);
   for (const [key,id] of Object.entries(filterFields)) {
@@ -88,6 +90,7 @@ async function renderResults(focusError = false) {
     $('#result-cards').setAttribute('aria-busy','false');
     if (focusError) {
       if(['classFilter','deliveryFilter'].includes(invalid[0]))searchUI.openFilters();
+      if(['priceFrom','priceTo'].includes(invalid[0]))searchUI.openPrice();
       $(`#${filterFields[invalid[0]]}`).focus();
     }
     return;
@@ -137,7 +140,7 @@ async function renderResults(focusError = false) {
   }
   $('#result-cards').setAttribute('aria-busy','false');
   const params = new URLSearchParams();
-  for (const [key,value] of Object.entries({city:result.city,budget:result.budget,area:result.area,query:result.query,classFilter:result.classFilter,deliveryFilter:result.deliveryFilter})) {
+  for (const [key,value] of Object.entries({city:result.city,priceFrom:result.priceFrom,priceTo:result.priceTo,area:result.area,query:result.query,classFilter:result.classFilter,deliveryFilter:result.deliveryFilter})) {
     if(value!==null && value!=='')params.set(key,String(value));
   }
   history.replaceState(null,'',`${location.pathname}?${params}${location.hash||'#selection'}`);
@@ -153,6 +156,7 @@ function queueResults() {
 function resetFilters() {
   const fromEmpty=$('#result-cards .empty')?.contains(document.activeElement);
   $('#match-form').reset();
+  priceUI.reset();
   renderResults();
   if(fromEmpty)$('#search').focus();
 }
@@ -197,6 +201,8 @@ try {
   } catch(error) { console.warn('ML artifacts unavailable:',error.message); }
   const query = new URLSearchParams(location.search);
   for (const [key,id] of Object.entries({...filterFields,query:'search'})) if(query.has(key)) $(`#${id}`).value=query.get(key);
+  if(!query.has('priceTo')&&query.has('budget'))$('#price-to').value=query.get('budget');
+  priceUI.sync(true);
   renderResearch();route();await renderResults(false);
   if(!$('#search').value && profiles) setTimeout(()=>semanticEncoder.ready().catch(()=>{}),500);
 } catch (error) {
