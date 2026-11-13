@@ -55,7 +55,7 @@ function renderResults(announce = true) {
   }
   const query = new URLSearchParams({city:result.city,budget:String(result.budget),area:String(result.area)});
   history.replaceState(null,'',`${location.pathname}?${query}${location.hash || '#selection'}`);
-  if (announce) $('#results').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  if (announce && matchMedia('(max-width: 800px)').matches) $('#results').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
 }
 
 function renderCatalog() {

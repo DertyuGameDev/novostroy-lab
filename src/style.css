@@ -23,7 +23,28 @@ nav a:hover{background:#e7ecef;color:var(--ink)}
 nav a[aria-current]{background:var(--ink);color:var(--white)}
 .edition{border-left:1px solid var(--line);padding-left:28px;font-size:9px;letter-spacing:.04em;line-height:1.8;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .edition b{font-size:12px;letter-spacing:.02em;color:var(--ink);font-weight:500}
-.hero{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:88px;align-items:start;padding-top:64px}
+.selection-intro{padding-top:34px}
+.selection-intro .eyebrow{margin-bottom:12px}
+.selection-intro h1{margin:0 0 12px;font-size:38px;line-height:1.2;font-weight:500;letter-spacing:-.055em}
+.selection-intro .hero-copy{max-width:800px;font-size:13px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:'results form';gap:32px;align-items:start;padding-top:30px}
+.hero>.search-panel{grid-area:form;position:sticky;top:24px}
+.hero>.results{grid-area:results;min-width:0;padding-top:0}
+.results .section-heading{display:block;margin-bottom:18px}
+.results .section-heading>p{max-width:none;margin-top:8px}
+.results .cards{grid-template-columns:minmax(0,1fr);gap:14px}
+.results .complex-card{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:24px;min-height:0;padding:18px 20px 14px}
+.results .card-top{grid-column:1/-1;margin-bottom:12px}
+.results .complex-card h3{grid-column:1;grid-row:2;margin-bottom:6px;font-size:21px}
+.results .district{grid-column:1;grid-row:3;min-height:0;margin-bottom:10px}
+.results .cost{grid-column:2;grid-row:2;text-align:right;font-size:27px;margin:0 0 6px}
+.results .apartment-estimate{grid-column:2;grid-row:3;display:block;text-align:right;border:0;padding:0}
+.results .apartment-estimate>span{display:block;font-size:9px;margin-bottom:2px}
+.results .apartment-estimate strong{font-size:14px}
+.results .calculation{grid-column:2;grid-row:4;text-align:right;margin:5px 0 11px}
+.results .delivery{grid-column:1;grid-row:4;margin:5px 0 11px}
+.results .card-footer{grid-column:1/-1;padding-top:10px}
+.results .fineprint{font-size:9px;margin-top:14px}
 .eyebrow{margin:0 0 21px;font-size:10px;font-weight:500;letter-spacing:.09em;line-height:1.5;text-transform:uppercase;color:var(--muted)}
 .hero h1,.page-heading h1{margin:0 0 26px;font-size:clamp(45px,4.7vw,66px);line-height:1.08;font-weight:500;letter-spacing:-.065em}
 h1 em{font-style:normal;font-weight:inherit;color:var(--accent)}
@@ -165,7 +186,10 @@ main:focus{outline:none}
   .brand-description{display:none}
   .edition{padding-left:20px}
   nav a{padding:10px 12px;font-size:11px}
-  .hero{grid-template-columns:minmax(0,1fr) 375px;gap:45px;padding-top:49px}
+  .hero{grid-template-columns:minmax(0,1fr) 335px;gap:24px;padding-top:28px}
+  .results .complex-card{column-gap:15px;padding-inline:17px}
+  .results .complex-card h3{font-size:19px}
+  .results .cost{font-size:23px}
   .hero h1{font-size:54px}
   .hero-copy{font-size:14px}
   .hero-prices{gap:12px}
@@ -187,7 +211,21 @@ main:focus{outline:none}
   .edition b{font-size:10px}
   nav{order:3;width:100%;margin:8px 0 0;gap:6px}
   nav a{font-size:10px;padding:9px 8px;flex:1;text-align:center}
-  .hero{grid-template-columns:1fr;gap:29px;padding-top:35px}
+  .selection-intro{padding-top:28px}
+  .selection-intro h1{font-size:32px;max-width:540px}
+  .hero{grid-template-columns:1fr;grid-template-areas:'form' 'results';gap:29px;padding-top:25px}
+  .hero>.search-panel{position:static}
+  .results .complex-card{display:flex;padding:23px}
+  .results .complex-card h3{font-size:25px}
+  .results .district{margin-bottom:21px}
+  .results .cost{text-align:left;font-size:34px;margin-bottom:17px}
+  .results .apartment-estimate{display:flex;justify-content:space-between;align-items:center;text-align:left;border-top:1px solid #e5eaed;padding-top:13px}
+  .results .apartment-estimate>span{margin:0}
+  .results .apartment-estimate strong{font-size:16px}
+  .results .calculation{text-align:left;margin:5px 0 16px}
+  .results .delivery{margin:0 0 18px}
+  .results .card-top{margin-bottom:21px}
+  .results .card-footer{padding-top:13px}
   .hero h1{font-size:clamp(40px,7.5vw,58px);margin-bottom:21px}
   .hero-copy{max-width:580px;font-size:13px;line-height:1.85}
   .eyebrow{font-size:9px;margin-bottom:18px}
@@ -259,6 +297,8 @@ main:focus{outline:none}
   .entry-price strong{font-size:21px}
   .hero-prices{gap:12px}
   .cost{font-size:29px}
+  .results .cost{font-size:29px}
+  .results .apartment-estimate strong{font-size:14px}
   .apartment-estimate strong{font-size:14px}
   .chart-row{grid-template-columns:98px 1fr 52px;gap:6px}
   .chart-axis{margin-left:104px;margin-right:58px}
