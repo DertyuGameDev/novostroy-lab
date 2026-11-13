@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#182126">
   <meta name="description" content="Исследование 15 ЖК в Москве, Сочи и Петербурге: источники цен, сравнение и подбор по бюджету и площади.">
-  <title>Метр — новостройки в пределах вашего бюджета</title>
+  <title>Метр — каталог новостроек</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=3">
-  <script type="module" src="./app.mjs?v=3"></script>
+  <link rel="stylesheet" href="./style.css?v=4">
+  <script type="module" src="./app.mjs?v=4"></script>
 </head>
 <body>
   <a class="skip" href="#main">Перейти к содержимому</a>
   <header class="header wrap">
     <a class="wordmark" href="#selection" aria-label="Метр, подбор">метр<span class="brand-point">.</span><span class="brand-description">Исследование<br>новостроек</span></a>
     <nav aria-label="Основная навигация">
-      <a href="#selection" data-nav="selection" aria-current="page">Подобрать</a>
+      <a href="#selection" data-nav="selection" aria-current="page">Найти ЖК</a>
       <a href="#catalog" data-nav="catalog">15 комплексов</a>
       <a href="#research" data-nav="research">Исследование</a>
       <a href="#process" data-nav="process">Работа с ИИ</a>
@@ -28,24 +28,28 @@
     <section id="selection" class="view" aria-labelledby="selection-title" hidden>
       <div class="selection-intro">
           <p class="eyebrow">Бизнес и премиум / 15 жилых комплексов</p>
-          <h1 id="selection-title">Новостройки <em>в вашем бюджете.</em></h1>
-          <p class="hero-copy">Москва, Сочи и Санкт-Петербург. Сравните минимальные цены за метр и выберите до трёх комплексов под вашу площадь.</p>
+          <h1 id="selection-title">Каталог <em>новостроек.</em></h1>
+          <p class="hero-copy">Москва, Сочи и Санкт-Петербург. Найдите комплекс по названию или задайте параметры — карточки обновятся сразу.</p>
       </div>
-      <div class="hero">
-        <form id="match-form" class="search-panel" novalidate>
-          <p class="eyebrow">Параметры квартиры</p>
-          <h2>Подобрать новостройку</h2>
-          <div class="field"><label for="city">Город</label><select id="city" name="city" aria-describedby="city-error"><option>Москва</option><option>Сочи</option><option>Санкт-Петербург</option></select><p id="city-error" class="error"></p></div>
-          <div class="field"><label for="budget">Бюджет на квартиру, ₽</label><input id="budget" name="budget" type="text" inputmode="decimal" value="30 000 000" autocomplete="off" aria-describedby="budget-hint budget-error"><span id="budget-hint" class="hint">Полная стоимость квартиры</span><p id="budget-error" class="error"></p></div>
-          <div class="field"><label for="area">Желаемая площадь, м²</label><input id="area" name="area" type="text" inputmode="decimal" value="50" autocomplete="off" aria-describedby="area-error"><p id="area-error" class="error"></p></div>
-          <button class="primary" type="submit">Подобрать комплексы <span aria-hidden="true">↗</span></button>
-          <p class="form-note">Ориентир = цена от за м² × ваша площадь.<br>Наличие квартиры такого метража нужно уточнить.</p>
-        </form>
+      <form id="match-form" class="filter-panel" novalidate aria-label="Поиск и фильтры ЖК">
+        <div class="search-row">
+          <div class="field search-field"><label for="search">Поиск по названию, застройщику или району</label><div class="search-input"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" name="query" type="search" placeholder="Например: Шагал, Донстрой или Петроградский" autocomplete="off" maxlength="200"></div></div>
+          <button class="secondary" type="button" id="reset-filters">Сбросить фильтры</button>
+        </div>
+        <div class="filter-grid">
+          <div class="field"><label for="city">Город</label><select id="city" name="city" aria-describedby="city-error"><option value="all">Все города</option><option>Москва</option><option>Сочи</option><option>Санкт-Петербург</option></select><p id="city-error" class="error"></p></div>
+          <div class="field"><label for="class-filter">Класс жилья</label><select id="class-filter" name="classFilter" aria-describedby="class-filter-error"><option value="all">Любой класс</option><option>Бизнес</option><option>Премиум</option></select><p id="class-filter-error" class="error"></p></div>
+          <div class="field"><label for="budget">Бюджет квартиры до, ₽</label><input id="budget" name="budget" type="text" inputmode="decimal" placeholder="Без ограничений" autocomplete="off" aria-describedby="filters-hint budget-error"><p id="budget-error" class="error"></p></div>
+          <div class="field"><label for="area">Площадь для расчёта, м²</label><input id="area" name="area" type="text" inputmode="decimal" value="50" autocomplete="off" aria-describedby="filters-hint area-error"><p id="area-error" class="error"></p></div>
+          <div class="field"><label for="sort">Сортировка</label><select id="sort" name="sort" aria-describedby="sort-error"><option value="price-asc">Сначала дешевле за м²</option><option value="price-desc">Сначала дороже за м²</option><option value="name">По названию</option></select><p id="sort-error" class="error"></p></div>
+        </div>
+        <p id="filters-hint" class="form-note">Фильтры применяются сразу. Бюджет проверяется по формуле: цена от за м² × площадь. Наличие конкретной квартиры нужно уточнить.</p>
+        <p id="filter-errors" class="sr-only" role="status" aria-live="polite"></p>
+      </form>
       <div id="results" class="results" aria-labelledby="results-title">
-        <div class="section-heading"><div><p class="eyebrow">В пределах бюджета</p><h2 id="results-title">Подходящие комплексы</h2></div><p id="result-status" role="status" aria-live="polite"></p></div>
+        <div class="section-heading"><h2 id="results-title">Жилые комплексы</h2><p id="result-status" role="status" aria-live="polite"></p></div>
         <div id="result-cards" class="cards"></div>
-        <p id="estimate-note" class="fineprint">Сортировка — от меньшей расчётной стоимости. Минимальная цена по ЖК может относиться к другой площади, этажу или очереди. Это оценка по таблице, а не доступный лот. Отделка, парковка и расходы на сделку не учтены.</p>
-      </div>
+        <p id="estimate-note" class="fineprint">Минимальная цена по ЖК может относиться к другой площади, этажу или очереди. Это оценка по таблице, а не доступный лот. Отделка, парковка и расходы на сделку не учтены.</p>
       </div>
       <div class="market-entry"><p class="eyebrow">Минимальная цена в выборке, ₽/м²</p><div id="hero-prices" class="hero-prices"></div></div>
     </section>
@@ -64,7 +68,7 @@
     </section>
     <section id="process" class="view" aria-labelledby="process-title" hidden>
       <div class="page-heading"><p class="eyebrow">Методика / Работа с ИИ</p><h1 id="process-title">От источников<br><em>к решению.</em></h1><p>Поиск, проверка, расчёты и код — в одном воспроизводимом проекте.</p></div>
-      <div class="process-grid"><article class="paper"><span class="number">01</span><h2>Сбор и проверка</h2><p>С помощью ChatGPT собраны кандидаты, затем сверены цены, класс и сроки в открытых каталогах. Комфорт-класс и апарт-отели исключены. Для двух страниц использована индексированная выдача — это отмечено в строках.</p></article><article class="paper"><span class="number">02</span><h2>Исправленная ошибка</h2><p>В черновик для «Шагал» попала устаревшая цена из поисковой выдачи — 435 000 ₽/м². Открытая страница на 12.11 показывала 422 000 ₽/м². В итоговые данные перенесено новое значение, расчёты пересчитаны.</p><a class="text-link" href="https://kvadroom.ru/complex/zk-shagal" target="_blank" rel="noopener noreferrer">Проверить источник ↗</a></article><article class="paper"><span class="number">03</span><h2>Пять промптов</h2><p>В журнале сохранены два фактических запроса и три формулировки для воспроизведения этапов. Реконструкции помечены отдельно.</p><a class="text-link" href="./downloads/ai-work.md" download>Промпты и журнал ↓</a></article><article class="paper"><span class="number">04</span><h2>Расчёт и проверка</h2><p>Подборщик фильтрует по городу и бюджету, считает стоимость по площади и возвращает до трёх вариантов. Формула выполняется локально в браузере; ответы нейросети не участвуют в расчёте.</p><a class="text-link" href="./downloads/report.md" download>Отчёт и методика ↓</a></article></div>
+      <div class="process-grid"><article class="paper"><span class="number">01</span><h2>Сбор и проверка</h2><p>С помощью ChatGPT собраны кандидаты, затем сверены цены, класс и сроки в открытых каталогах. Комфорт-класс и апарт-отели исключены. Для двух страниц использована индексированная выдача — это отмечено в строках.</p></article><article class="paper"><span class="number">02</span><h2>Исправленная ошибка</h2><p>В черновик для «Шагал» попала устаревшая цена из поисковой выдачи — 435 000 ₽/м². Открытая страница на 12.11 показывала 422 000 ₽/м². В итоговые данные перенесено новое значение, расчёты пересчитаны.</p><a class="text-link" href="https://kvadroom.ru/complex/zk-shagal" target="_blank" rel="noopener noreferrer">Проверить источник ↗</a></article><article class="paper"><span class="number">03</span><h2>Пять промптов</h2><p>В журнале сохранены три фактических запроса и две формулировки для воспроизведения этапов. Реконструкции помечены отдельно.</p><a class="text-link" href="./downloads/ai-work.md" download>Промпты и журнал ↓</a></article><article class="paper"><span class="number">04</span><h2>Расчёт и проверка</h2><p>Каталог ищет по названию и параметрам, считает стоимость по площади и показывает все подходящие ЖК. Формула выполняется локально в браузере; ответы нейросети не участвуют в расчёте.</p><a class="text-link" href="./downloads/report.md" download>Отчёт и методика ↓</a></article></div>
       <div class="submission"><div><p class="eyebrow">Комплект для трека А</p><h2>Данные, код и демонстрация</h2><p>Таблица с источниками, график, выводы, описание работы с ИИ и три скриншота.</p></div><a class="primary" href="https://github.com/DertyuGameDev/novostroy-lab-20261112" target="_blank" rel="noopener noreferrer">Открыть проект на GitHub ↗</a></div>
       <div class="download-row"><a href="./downloads/01-selection.png" target="_blank" rel="noopener noreferrer">Подбор: Москва ↗</a><a href="./downloads/02-research.png" target="_blank" rel="noopener noreferrer">Исследование ↗</a><a href="./downloads/03-mobile.png" target="_blank" rel="noopener noreferrer">Мобильная версия ↗</a></div>
     </section>

@@ -8,11 +8,38 @@ test('15 unique ЖК, 5 in each city, valid prices and links for every numeric f
   for(const city of ['Москва','Сочи','Санкт-Петербург']) assert.equal(records.filter(r=>r.city===city).length,5);
   for(const row of records){assert.ok(Number.isSafeInteger(row.priceFrom)&&row.priceFrom>0);assert.ok(['Бизнес','Премиум'].includes(row.class));for(const url of [row.sourceUrl,row.deliverySourceUrl||row.sourceUrl])assert.equal(new URL(url).protocol,'https:');assert.ok(row.developer&&row.district&&row.delivery&&row.notes);}
 });
-test('Moscow 30m/50m² returns cheapest three in budget, correct cost and city',()=>{
+test('Moscow 30m/50m² returns all four matching projects with correct costs',()=>{
   const result=matchComplexes(records,{city:'Москва',budget:30e6,area:50});
-  assert.deepEqual(result.matches.map(r=>r.id),['moscow-shagal','moscow-simvol','moscow-sydney']);
-  assert.deepEqual(result.matches.map(r=>r.estimatedPrice),[21100000,22185000,27665000]);
+  assert.deepEqual(result.matches.map(r=>r.id),['moscow-shagal','moscow-simvol','moscow-sydney','moscow-ostrov']);
+  assert.deepEqual(result.matches.map(r=>r.estimatedPrice),[21100000,22185000,27665000,29390000]);
   assert.equal(result.total,4);assert.ok(result.matches.every(r=>r.city==='Москва'&&r.estimatedPrice<=30e6));
+});
+test('unfiltered catalog shows all 15 projects instead of truncating to three',()=>{
+  const result=matchComplexes(records);
+  assert.equal(result.total,15);assert.equal(result.matches.length,15);
+  assert.equal(result.matches[0].id,'sochi-yuzhny-park');
+});
+test('search handles case, yo, punctuation, developer, district and combined words',()=>{
+  assert.deepEqual(matchComplexes(records,{query:'ЧЕРНАЯ РЕЧКА 41'}).matches.map(r=>r.id),['spb-black-river']);
+  assert.deepEqual(matchComplexes(records,{query:'москва ДОНСТРОЙ'}).matches.map(r=>r.id),['moscow-simvol','moscow-ostrov']);
+  assert.ok(matchComplexes(records,{query:'Петроградский'}).matches.every(r=>r.district==='Петроградский'));
+  assert.equal(matchComplexes(records,{query:'sydney city'}).matches[0].id,'moscow-sydney');
+  assert.equal(matchComplexes(records,{query:'несуществующий ЖК'}).minimumBudget,null);
+});
+test('query, city, class and budget filters intersect',()=>{
+  const result=matchComplexes(records,{city:'Москва',classFilter:'Премиум',query:'Донстрой',budget:30e6,area:50});
+  assert.deepEqual(result.matches.map(r=>r.id),['moscow-ostrov']);
+  assert.equal(matchComplexes(records,{city:'Сочи',classFilter:'Премиум'}).total,0);
+});
+test('sort direction changes the entire result order',()=>{
+  const result=matchComplexes(records,{sort:'price-desc'});
+  assert.equal(result.matches.length,15);assert.equal(result.matches[0].id,'moscow-prime');assert.equal(result.matches.at(-1).id,'sochi-yuzhny-park');
+});
+test('budget is optional; supplying it requires a valid area',()=>{
+  const free=matchComplexes(records,{budget:'',area:''});
+  assert.equal(free.total,15);assert.equal(free.matches[0].estimatedPrice,null);
+  const invalid=matchComplexes(records,{budget:30e6,area:''});
+  assert.ok(invalid.errors.area);assert.equal(invalid.matches.length,0);
 });
 test('budget boundary is inclusive and not rounded down',()=>{
   assert.equal(matchComplexes(records,{city:'Сочи',budget:14500000,area:50}).total,1);

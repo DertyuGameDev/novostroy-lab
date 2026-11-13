@@ -1,4 +1,4 @@
-import { matchComplexes, cityStats, CITIES } from './matcher.mjs?v=2';
+import { matchComplexes, cityStats, CITIES } from './matcher.mjs?v=4';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -16,46 +16,78 @@ function route() {
     if (item.dataset.nav === selected) item.setAttribute('aria-current','page');
     else item.removeAttribute('aria-current');
   }
-  document.title = `${{selection:'Подбор новостроек',catalog:'15 ЖК с источниками',research:'Исследование цен',process:'Работа с ИИ'}[selected]} — Метр`;
+  document.title = `${{selection:'Каталог новостроек',catalog:'15 ЖК с источниками',research:'Исследование цен',process:'Работа с ИИ'}[selected]} — Метр`;
 }
 
-function renderResults(announce = true) {
-  const input = {city:$('#city').value,budget:$('#budget').value,area:$('#area').value};
-  const result = matchComplexes(records, input);
-  for (const key of ['city','budget','area']) {
-    $(`#${key}-error`).textContent = result.errors[key] || '';
-    $(`#${key}`).setAttribute('aria-invalid', String(Boolean(result.errors[key])));
+const cardNodes = new Map();
+const filterFields = { city:'city', budget:'budget', area:'area', classFilter:'class-filter', sort:'sort' };
+function renderResults(focusError = false) {
+  const result = matchComplexes(records, {
+    city:$('#city').value, budget:$('#budget').value, area:$('#area').value,
+    query:$('#search').value, classFilter:$('#class-filter').value, sort:$('#sort').value,
+  });
+  for (const [key,id] of Object.entries(filterFields)) {
+    $(`#${id}-error`).textContent = result.errors[key] || '';
+    $(`#${id}`).setAttribute('aria-invalid', String(Boolean(result.errors[key])));
   }
-  if (Object.keys(result.errors).length) {
-    // Remove stale results so invalid new input cannot appear to have succeeded.
-    $('#result-cards').replaceChildren();
-    $('#result-status').textContent = 'Проверьте параметры подбора.';
-    $('#estimate-note').hidden = true;
-    $(`#${Object.keys(result.errors)[0]}`).focus();
+  const invalid = Object.keys(result.errors);
+  $('#filter-errors').textContent = invalid.length ? 'Проверьте фильтры: ' + Object.values(result.errors).join(' ') : '';
+  $('#estimate-note').hidden = Boolean(invalid.length);
+  const container = $('#result-cards');
+  const emptyNode = container.querySelector('.empty');
+  for (const node of cardNodes.values()) node.hidden = true;
+  if (invalid.length) {
+    emptyNode?.remove();
+    $('#result-status').textContent = 'Проверьте параметры фильтров.';
+    if (focusError) $(`#${filterFields[invalid[0]]}`).focus();
     return;
   }
-  $('#estimate-note').hidden = false;
-  $('#result-status').textContent = `${result.city} · ${number(result.area)} м² · показано ${result.matches.length} из ${result.total} подходящих ЖК`;
-  if (!result.matches.length) {
-    $('#result-cards').innerHTML = `<div class="empty"><h3>В этой выборке вариантов нет</h3><p>При площади ${number(result.area)} м² расчёт начинается от ${rubles(result.minimumBudget)}. Можно увеличить бюджет или уменьшить площадь.</p><button class="secondary" id="use-minimum" type="button">Поставить минимальный бюджет</button></div>`;
-    $('#use-minimum').addEventListener('click', () => {
-      $('#budget').value = number(Math.ceil(result.minimumBudget));
-      renderResults();
-    });
-  } else {
-    $('#result-cards').innerHTML = result.matches.map((row,index) => `<article class="complex-card">
-      <div class="card-top"><span class="badge">${escape(row.class)}</span><span class="rank">0${index+1}</span></div>
-      <h3>${escape(row.name)}</h3><p class="district">${escape(row.district)} · ${escape(row.developer)}</p>
-      <p class="cost"><span class="price-prefix">от</span> ${number(row.priceFrom)} <span class="price-unit">₽/м²</span></p>
-      <div class="apartment-estimate"><span>Квартира ${number(result.area)} м²</span><strong>≈ ${rubles(row.estimatedPrice)}</strong></div>
-      <p class="calculation">${rubles(row.priceFrom)} / м² × ${number(result.area)} м²</p>
-      <p class="delivery">Сдача: ${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery))}</p>
-      <div class="card-footer"><span>Источник: ${date(row.sourceDate)}${row.sourceDate ? '' : ' (дата прайса)'}</span>${link(row.sourceUrl,'Цена в источнике ↗','text-link')}</div>
-    </article>`).join('');
+  $('#result-status').textContent = `Найдено ${result.total} из ${records.length} ЖК`;
+  $('#results-title').textContent = result.total === records.length ? 'Все жилые комплексы' : 'Результаты поиска';
+  if (result.total) emptyNode?.remove();
+  for (const [index,row] of result.matches.entries()) {
+    let node = cardNodes.get(row.id);
+    if (!node) {
+      node = document.createElement('article');
+      node.className = 'complex-card';
+      node.dataset.id = row.id;
+      node.innerHTML = `
+        <div class="card-top"><span class="badge">${escape(row.class)}</span><span class="city-label">${escape(row.city)}</span></div>
+        <h3>${escape(row.name)}</h3><p class="district">${escape(row.district)} · ${escape(row.developer)}</p>
+        <p class="cost"><span class="price-prefix">от</span> ${number(row.priceFrom)} <span class="price-unit">₽/м²</span></p>
+        <div class="apartment-estimate"><span></span><strong></strong></div><p class="calculation"></p>
+        <p class="delivery">Сдача: ${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery))}</p>
+        <div class="card-footer"><span>Источник: ${date(row.sourceDate)}${row.sourceDate ? '' : ' (дата прайса)'}</span>${link(row.sourceUrl,'Цена в источнике ↗','text-link')}</div>`;
+      cardNodes.set(row.id,node);
+    }
+    node.hidden = false;
+    node.querySelector('.apartment-estimate span').textContent = result.area === null ? 'Расчёт стоимости' : `Квартира ${number(result.area)} м²`;
+    node.querySelector('.apartment-estimate strong').textContent = row.estimatedPrice === null ? 'Укажите площадь' : `≈ ${rubles(row.estimatedPrice)}`;
+    node.querySelector('.calculation').textContent = result.area === null ? '' : `${rubles(row.priceFrom)} / м² × ${number(result.area)} м²`;
+    if (container.children[index] !== node) container.insertBefore(node,container.children[index] || null);
   }
-  const query = new URLSearchParams({city:result.city,budget:String(result.budget),area:String(result.area)});
-  history.replaceState(null,'',`${location.pathname}?${query}${location.hash || '#selection'}`);
-  if (announce && matchMedia('(max-width: 800px)').matches) $('#results').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  if (!result.total) {
+    const empty = emptyNode || document.createElement('div');
+    if (!emptyNode) {
+      empty.className = 'empty';
+      empty.innerHTML = '<h3>По этим параметрам ничего не найдено</h3><p></p><button class="secondary" type="button">Сбросить фильтры</button>';
+      empty.querySelector('button').addEventListener('click',resetFilters);
+      container.append(empty);
+    }
+    empty.querySelector('p').textContent = result.minimumBudget !== null && result.budget !== null ? `Для выбранных ЖК и площади расчёт начинается от ${rubles(result.minimumBudget)}. Увеличьте бюджет или измените фильтры.` : 'Попробуйте другое название, город или класс жилья.';
+  }
+  const params = new URLSearchParams();
+  for (const [key,value] of Object.entries({city:result.city,budget:result.budget,area:result.area,query:result.query,classFilter:result.classFilter,sort:result.sort})) {
+    if (value !== null && value !== '') params.set(key,String(value));
+  }
+  history.replaceState(null,'',`${location.pathname}?${params}${location.hash || '#selection'}`);
+}
+
+function resetFilters() {
+  const fromEmpty = $('#result-cards .empty')?.contains(document.activeElement);
+  $('#match-form').reset();
+  renderResults();
+  if (fromEmpty) $('#search').focus();
 }
 
 function renderCatalog() {
@@ -89,9 +121,10 @@ function renderResearch() {
 }
 
 window.addEventListener('hashchange',route);
-$('#match-form').addEventListener('submit',event=>{event.preventDefault();renderResults();});
-// Clear previous results while editing, so they never look matched to changed parameters.
-$('#match-form').addEventListener('input',()=>{ $('#result-status').textContent='Параметры изменены. Нажмите «Подобрать комплексы».';$('#result-cards').replaceChildren();$('#estimate-note').hidden=true; });
+$('#match-form').addEventListener('submit',event=>{event.preventDefault();renderResults(true);});
+$('#match-form').addEventListener('input',()=>renderResults());
+$('#search').addEventListener('search',()=>renderResults());
+$('#reset-filters').addEventListener('click',resetFilters);
 $('#catalog-city').addEventListener('change',renderCatalog);
 
 try {
@@ -101,7 +134,7 @@ try {
   if (payload.records?.length !== 15) throw new Error('Invalid dataset');
   records = payload.records;
   const query = new URLSearchParams(location.search);
-  for (const key of ['city','budget','area']) if(query.has(key)) $(`#${key}`).value=query.get(key);
+  for (const [key,id] of Object.entries({...filterFields,query:'search'})) if(query.has(key)) $(`#${id}`).value=query.get(key);
   renderCatalog();renderResearch();route();renderResults(false);
 } catch (error) {
   console.error('Не удалось инициализировать подборщик:',error);

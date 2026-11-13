@@ -7,31 +7,47 @@ export function parseNumber(value) {
   return /^\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
 }
 
-export function validateInput({ city, budget, area }) {
+export function validateInput({ city = 'all', budget = '', area = 50, query = '', classFilter = 'all', sort = 'price-asc' } = {}) {
   const errors = {};
-  const rubles = parseNumber(budget);
-  const squareMeters = parseNumber(area);
-  if (!CITIES.includes(city)) errors.city = 'Выберите город из списка.';
-  if (!Number.isFinite(rubles) || rubles <= 0 || rubles > 1e12) {
+  const empty = value => value == null || typeof value === 'string' && value.trim() === '';
+  const rubles = empty(budget) ? null : parseNumber(budget);
+  const squareMeters = empty(area) ? null : parseNumber(area);
+  if (city !== 'all' && !CITIES.includes(city)) errors.city = 'Выберите город из списка.';
+  if (rubles !== null && (!Number.isFinite(rubles) || rubles <= 0 || rubles > 1e12)) {
     errors.budget = 'Введите бюджет больше нуля, до 1 трлн ₽.';
   }
-  if (!Number.isFinite(squareMeters) || squareMeters < 1 || squareMeters > 1000) {
+  if (squareMeters !== null && (!Number.isFinite(squareMeters) || squareMeters < 1 || squareMeters > 1000)) {
     errors.area = 'Введите площадь от 1 до 1 000 м².';
   }
-  return { errors, city, budget: rubles, area: squareMeters };
+  if (rubles !== null && squareMeters === null) errors.area = 'Укажите площадь для расчёта бюджета.';
+  if (!['all','Бизнес','Премиум'].includes(classFilter)) errors.classFilter = 'Выберите класс из списка.';
+  if (!['price-asc','price-desc','name'].includes(sort)) errors.sort = 'Выберите сортировку из списка.';
+  return { errors, city, budget: rubles, area: squareMeters, query: String(query).trim(), classFilter, sort };
+}
+
+export function normalizeSearch(value) {
+  return String(value).normalize('NFKC').toLocaleLowerCase('ru-RU').replaceAll('ё','е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 }
 
 /** The dataset has project-level starting prices, not apartment inventory. */
-export function matchComplexes(records, input) {
+export function matchComplexes(records, input = {}) {
   const parsed = validateInput(input);
   if (Object.keys(parsed.errors).length) return { ...parsed, matches: [], total: 0, minimumBudget: null };
-  const candidates = records.filter(row => row.city === parsed.city).map(row => ({
+  const words = normalizeSearch(parsed.query).split(/\s+/).filter(Boolean);
+  const candidates = records.filter(row => (parsed.city === 'all' || row.city === parsed.city)
+    && (parsed.classFilter === 'all' || row.class === parsed.classFilter)
+    && words.every(word => normalizeSearch(`${row.name} ${row.developer} ${row.district} ${row.city}`).includes(word))).map(row => ({
     ...row,
     // Compare unrounded values: rounding must never admit an over-budget option.
-    estimatedPrice: row.priceFrom * parsed.area,
-  })).sort((a, b) => a.estimatedPrice - b.estimatedPrice || a.name.localeCompare(b.name, 'ru'));
-  const matches = candidates.filter(row => row.estimatedPrice <= parsed.budget);
-  return { ...parsed, matches: matches.slice(0, 3), total: matches.length, minimumBudget: candidates[0]?.estimatedPrice ?? null };
+    estimatedPrice: parsed.area === null ? null : row.priceFrom * parsed.area,
+  }));
+  const minimumBudget = candidates.length && parsed.area !== null ? Math.min(...candidates.map(row => row.estimatedPrice)) : null;
+  const matches = candidates.filter(row => parsed.budget === null || row.estimatedPrice <= parsed.budget).sort((a,b) => {
+    const byName = a.name.localeCompare(b.name,'ru');
+    if (parsed.sort === 'name') return byName;
+    return (parsed.sort === 'price-desc' ? b.priceFrom-a.priceFrom : a.priceFrom-b.priceFrom) || byName;
+  });
+  return { ...parsed, matches, total: matches.length, minimumBudget };
 }
 
 export function cityStats(records) {
