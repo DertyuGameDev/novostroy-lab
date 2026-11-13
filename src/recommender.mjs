@@ -1,4 +1,4 @@
-import {matchComplexes,normalizeSearch,validateInput} from './matcher.mjs?v=8';
+import {matchComplexes,normalizeSearch,validateInput,compareApartmentUnitPrice} from './matcher.mjs?v=11';
 
 export const TAG_LABELS={green:'Парк и озеленение',water:'У реки',sea:'Близость моря',family:'Детская инфраструктура',wellness:'Бассейн и SPA',heritage:'Историческое окружение',ready:'Сданный комплекс',terrace:'Террасы',sport:'Спортивные площадки',urban:'Городская инфраструктура',views:'Видовые квартиры'};
 export function dot(a,b){return a.reduce((sum,value,index)=>sum+value*b[index],0);}
@@ -10,7 +10,7 @@ function lexical(query,row) {
 export function featureVector(row,input,profile,queryEmbedding,model) {
   const hasQuery=Boolean(input.query);
   const features=[hasQuery&&queryEmbedding?dot(queryEmbedding,profile.embedding):0,lexical(input.query,row),
-    input.budget?Math.min(2,row.priceFrom*input.area/input.budget):0,Math.log1p(row.priceFrom)/Math.log(10000001),
+    input.budget&&row.selectedLot?Math.min(2,row.selectedLot.price/input.budget):0,Math.log1p(row.selectedLot?row.selectedLot.price/row.selectedLot.area:row.priceFrom)/Math.log(10000001),
     Number(Boolean(input.budget)),Math.log1p(input.area??50)/Math.log(1001),Number(row.constructionStatus==='Сдан'),Number(hasQuery)];
   for(const anchor of model.anchors) {
     const q=hasQuery&&queryEmbedding?dot(queryEmbedding,anchor.embedding):0;
@@ -35,14 +35,14 @@ export function scoreComplex(row,input,profile,queryEmbedding,model) {
   return {...row,profile,features,score,rankScore:score,semanticScore:features[0]};
 }
 
-export function rankRecommendations(records,rawInput,model,profiles,queryEmbedding=null) {
+export function rankRecommendations(records,rawInput,model,profiles,queryEmbedding=null,catalog={lots:[]}) {
   const input=validateInput(rawInput);
   if(Object.keys(input.errors).length)return {...input,featured:[],recommendations:[],total:0,minimumBudget:null,mode:'invalid'};
   // Structured criteria are strict. Text is used for semantic ranking.
-  const pool=matchComplexes(records,{...input,query:'',sort:'price-asc'});
+  const pool=matchComplexes(records,{...input,query:'',sort:'price-asc'},catalog);
   const available=Boolean(model&&profiles&&(!input.query||queryEmbedding));
   if(!available) {
-    const fallback=matchComplexes(records,input);
+    const fallback=matchComplexes(records,input,catalog);
     return {...fallback,featured:fallback.matches.slice(0,3),recommendations:fallback.matches.slice(3),mode:'literal-fallback'};
   }
   const ranked=pool.matches.map(row=>scoreComplex(row,input,profiles.get(row.id),queryEmbedding,model));
@@ -56,8 +56,8 @@ export function rankRecommendations(records,rawInput,model,profiles,queryEmbeddi
   }
   ranked.sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
   const featured=ranked.slice(0,3),recommendations=ranked.slice(3);
-  if(input.sort==='price-asc')recommendations.sort((a,b)=>a.priceFrom-b.priceFrom);
-  if(input.sort==='price-desc')recommendations.sort((a,b)=>b.priceFrom-a.priceFrom);
+  if(input.sort==='price-asc')recommendations.sort((a,b)=>compareApartmentUnitPrice(a,b));
+  if(input.sort==='price-desc')recommendations.sort((a,b)=>compareApartmentUnitPrice(a,b,-1));
   if(input.sort==='name')recommendations.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
   return {...pool,...input,featured,recommendations,total:ranked.length,mode:'hybrid-ml'};
 }

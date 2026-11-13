@@ -1,6 +1,7 @@
 import { initSearchUI } from './search-ui.mjs?v=9';
-import { validateInput, cityStats, CITIES } from './matcher.mjs?v=8';
-import { rankRecommendations } from './recommender.mjs?v=8';
+import { validateInput, cityStats, CITIES } from './matcher.mjs?v=11';
+import { rankRecommendations } from './recommender.mjs?v=11';
+import {summarizeAreaPrices,AREA_TOLERANCE} from './apartment-prices.mjs?v=11';
 import { semanticEncoder } from './semantic-encoder.mjs?v=8';
 
 const $ = selector => document.querySelector(selector);
@@ -9,12 +10,12 @@ const number = value => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 
 const rubles = value => `${number(value)} ₽`;
 const date = value => value ? value.split('-').reverse().join('.') : 'Не указана';
 const link = (url, text, className = '') => `<a class="${className}" href="${escape(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-let records = [];
+let records = [], apartmentCatalog={lots:[],projects:[]};
 const searchUI = initSearchUI();
 
 function route() {
   const id = location.hash.slice(1) || 'selection';
-  const selected = ['selection','catalog','research','process'].includes(id) ? id : 'selection';
+  const selected = ['selection','catalog','area-prices','research','process'].includes(id) ? id : 'selection';
   for (const view of document.querySelectorAll('.view')) view.hidden = view.id !== selected || !records.length;
   for (const item of document.querySelectorAll('[data-nav]')) {
     if (item.dataset.nav === selected) item.setAttribute('aria-current','page');
@@ -25,7 +26,7 @@ function route() {
   for(const menu of document.querySelectorAll('.materials-menu'))menu.open=false;
   searchUI.update();
   window.scrollTo(0,0);
-  document.title = `${{selection:'Каталог новостроек',catalog:'15 ЖК с источниками',research:'Исследование цен',process:'Работа с ИИ'}[selected]} — Метр`;
+  document.title = `${{selection:'Каталог новостроек',catalog:'15 ЖК с источниками','area-prices':'Цены по площади',research:'Исследование цен',process:'Работа с ИИ'}[selected]} — Метр`;
 }
 
 const cardNodes = new Map();
@@ -51,9 +52,15 @@ function renderCard(row, area, rank, featured) {
     cardNodes.set(row.id,node);
   }
   node.hidden=false;node.classList.toggle('featured-card',featured);node.classList.toggle('recommendation-card',!featured);
-  node.querySelector('.apartment-estimate').textContent=row.estimatedPrice===null?'':`${number(area)} м² ≈ ${rubles(row.estimatedPrice)}`;
+  const lot=row.selectedLot;
+  node.querySelector('.cost').innerHTML=lot
+    ? `${link(lot.sourceUrl,number(Math.round(lot.price/lot.area)))} <small>₽/м²</small>`
+    : '— <small>₽/м²</small>';
+  node.querySelector('.apartment-estimate').innerHTML=lot
+    ? `${number(lot.area)} м² · ${link(lot.sourceUrl,rubles(lot.price))}`
+    : (area===null?'Цена квартиры не подтверждена':`В выборке нет лота ${number(area*(1-AREA_TOLERANCE))}–${number(area*(1+AREA_TOLERANCE))} м²`);
   node.querySelector('.description').textContent=profile?.description||'';
-  node.querySelector('.profile-source').innerHTML=profile?link(profile.sources[0],'Источник характеристик','source-link'):'';
+  node.querySelector('.profile-source').innerHTML=(profile?link(profile.sources[0],'Источник характеристик','source-link'):'')+(lot?`<p>Лот ${escape(lot.sourceLotId)} · ${escape(lot.building||'Корпус не указан')} · ${lot.floor??'—'} этаж. ${escape(lot.finish||'Отделка не указана')}. ${escape(lot.terms)} Проверено: ${date(lot.checkedAt)}. Дата прайса: ${date(lot.sourceDate)}.</p>`:'');
   const score=node.querySelector('.match-score');score.hidden=!$('#search').value.trim()||!Number.isFinite(row.score);
   score.textContent=score.hidden?'':`Соответствие запросу: ${row.score.toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})} / 1`;
   if(Number.isFinite(row.score))node.dataset.matchScore=String(row.score);else delete node.dataset.matchScore;
@@ -93,7 +100,7 @@ async function renderResults(focusError = false) {
     }
   }
   if (revision !== renderRevision) return;
-  const result = rankRecommendations(records,input,ranker,profiles,embedding);
+  const result = rankRecommendations(records,input,ranker,profiles,embedding,apartmentCatalog);
   $('#selection').dataset.rankingMode = result.mode;
   $('#ranking-status').textContent = semanticFailure || result.mode === 'literal-fallback'
     ? 'Поиск по названию: модель рекомендаций недоступна. Попробуйте изменить запрос или обновить страницу.' : '';
@@ -121,8 +128,8 @@ async function renderResults(focusError = false) {
     }
     node.hidden=false;
     node.querySelector('p').textContent=result.minimumBudget!==null && result.budget!==null
-      ? `При выбранной площади расчёт начинается от ${rubles(result.minimumBudget)}. Измените бюджет или фильтры.`
-      : 'Попробуйте другой город, класс или запрос.';
+      ? `В выборке лоты близкой площади стоят от ${rubles(result.minimumBudget)}. Измените бюджет или площадь.`
+      : (result.budget!==null?'В выборке нет подтверждённых лотов в этом диапазоне площади. Измените площадь или снимите ограничение бюджета.':'Попробуйте другой город, класс или запрос.');
   }
   $('#result-cards').setAttribute('aria-busy','false');
   const params = new URLSearchParams();
@@ -170,9 +177,19 @@ function renderResearch() {
   $('#findings-list').innerHTML = [
     `<strong>Самая высокая минимальная цена — в Москве:</strong> ${number(moscow.min)} ₽/м² против ${number(sochi.min)} в Сочи — разница ${number(Math.round((moscow.min/sochi.min-1)*100))}%. Сравниваются минимумы выбранных ЖК в каждом городе.`,
     `<strong>Самый низкий порог — у «Южного Парка»:</strong> ${number(sochi.min)} ₽/м². Самый высокий — у PRIME PARK: ${number(moscow.max)} ₽/м². Разница в ${number(Math.round(moscow.max/sochi.min*100)/100)} раза.`,
-    `<strong>Петербург находится между двумя городами:</strong> минимальная цена ${number(spb.min)} ₽/м² у Neva Residence. При условных 50 м² ориентир — ${number(spb.min*50/1e6)} млн ₽; наличие квартиры по этой ставке не подтверждено.`,
+    `<strong>Петербург находится между двумя городами:</strong> минимальная цена ${number(spb.min)} ₽/м² у Neva Residence. Это минимальная ставка одного лота, а не ставка для любой площади. Фактические цены квартир собраны в отдельной таблице по размерам.`,
     `<strong>Неожиданный результат — премиум дешевле бизнеса по стартовому метру:</strong> Neva Residence — 348 400 ₽/м², James Beck — 405 000. Минимумы относятся к разным лотам; одного класса недостаточно для сопоставления квартир.`
   ].map(text=>`<li><div>${text}</div></li>`).join('');
+}
+
+function renderAreaPrices() {
+  const projectId=$('#area-project').value;
+  const rows=summarizeAreaPrices(records,apartmentCatalog).filter(row=>projectId==='all'||row.projectId===projectId);
+  $('#area-price-body').innerHTML=rows.map(row=>{
+    const coverage=apartmentCatalog.projects.find(p=>p.projectId===row.projectId);
+    const details=row.count?`${row.buildings.length} корп. · этажи ${row.floors.length?`${row.floors[0]}–${row.floors.at(-1)}`:'не указаны'}. ${row.finishes.join('; ')||'Отделка не указана'}`:'В проверенной выборке нет лотов этого размера';
+    return `<tr><td><span class="city-label">${escape(row.city)}</span><strong>${escape(row.name)}</strong><small>${escape(coverage.coverage)}</small></td><td>${escape(row.bandLabel)}</td><td>${row.count}</td><td>${row.count?`${number(Math.round(row.minUnit))}–${number(Math.round(row.maxUnit))}`:'Нет данных'}</td><td>${row.count?`${rubles(row.minPrice)}–${rubles(row.maxPrice)}`:'Нет данных'}</td><td>${escape(details)}</td><td>${link(row.sourceUrl,'Источник ↗')}<small>Проверено ${date(coverage.checkedAt)}. Прайс ${date(coverage.sourceDate)}.</small></td></tr>`;
+  }).join('');
 }
 
 window.addEventListener('hashchange',route);
@@ -181,6 +198,7 @@ $('#match-form').addEventListener('input',queueResults);
 $('#search').addEventListener('search',queueResults);
 $('#reset-filters').addEventListener('click',resetFilters);
 $('#catalog-city').addEventListener('change',renderCatalog);
+$('#area-project').addEventListener('change',renderAreaPrices);
 
 try {
   const response = await fetch('./data/complexes.json');
@@ -188,14 +206,19 @@ try {
   const payload = await response.json();
   if (payload.records?.length !== 15) throw new Error('Invalid dataset');
   records = payload.records;
+  const lotResponse=await fetch('./data/apartment-lots.json?v=11');
+  if(!lotResponse.ok)throw new Error('Apartment prices unavailable');
+  apartmentCatalog=await lotResponse.json();
+  if(!Array.isArray(apartmentCatalog.lots)||apartmentCatalog.projects?.length!==15)throw new Error('Invalid apartment catalogue');
+  $('#area-project').innerHTML='<option value="all">Все ЖК</option>'+records.map(r=>`<option value="${r.id}">${escape(r.city)} · ${escape(r.name)}</option>`).join('');
   try {
     const loadJson=async path=>{const response=await fetch(path);if(!response.ok)throw new Error(path);return response.json();};
-    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=8'),loadJson('./ml-assets/profiles.json?v=8')]);
+    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=11'),loadJson('./ml-assets/profiles.json?v=11')]);
     ranker=model;profiles=new Map(corpus.profiles.map(profile=>[profile.id,profile]));
   } catch(error) { console.warn('ML artifacts unavailable:',error.message); }
   const query = new URLSearchParams(location.search);
   for (const [key,id] of Object.entries({...filterFields,query:'search'})) if(query.has(key)) $(`#${id}`).value=query.get(key);
-  renderCatalog();renderResearch();route();await renderResults(false);
+  renderCatalog();renderAreaPrices();renderResearch();route();await renderResults(false);
   if(!$('#search').value && ranker) setTimeout(()=>semanticEncoder.ready().catch(()=>{}),500);
 } catch (error) {
   console.error('Не удалось инициализировать подборщик:',error);

@@ -12,6 +12,13 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 ROOT = Path(__file__).resolve().parents[1]
+LOT_CATALOG=json.loads((ROOT/'data/apartment-lots.json').read_text())
+LOTS_BY_PROJECT={pid:[lot for lot in LOT_CATALOG['lots'] if lot['projectId']==pid and lot['eligibility']=='included'] for pid in {lot['projectId'] for lot in LOT_CATALOG['lots']}}
+
+def select_apartment(record,area,budget=None):
+    rows=[lot for lot in LOTS_BY_PROJECT.get(record['id'],[]) if abs(lot['area']-area)<=area*.1+1e-9 and (budget is None or lot['price']<=budget)]
+    return min(rows,key=lambda lot:(abs(lot['area']-area),lot['price'],lot['id'])) if rows else None
+
 SEED = 42
 BASE_FEATURES = ['semantic_cosine','lexical_match','budget_utilization','price_log','has_budget','area_normalized','completed','has_query']
 ANCHORS = {
@@ -51,9 +58,11 @@ def lexical(query, record):
     return sum(word in hay for word in words)/len(words) if words else 0.
 
 def feature_row(record, query, embedding, vector, budget, area, anchors):
+    lot=select_apartment(record,area,budget)
+    unit=lot['price']/lot['area'] if lot else record['priceFrom']
     base = [float(embedding@vector) if query else 0., lexical(query,record),
-        min(2.,record['priceFrom']*area/budget) if budget else 0.,
-        float(np.log1p(record['priceFrom'])/np.log(10000001)), float(bool(budget)),
+        min(2.,lot['price']/budget) if budget and lot else 0.,
+        float(np.log1p(unit)/np.log(10000001)), float(bool(budget)),
         float(np.log1p(area)/np.log(1001)), float(record['constructionStatus']=='Сдан'), float(bool(query))]
     for anchor in anchors.values():
         q=float(embedding@anchor) if query else 0.
@@ -98,7 +107,7 @@ def main():
             area=float(rng.choice([25,35,50,65,80,100,120]))
             budget=None if i%4==0 else float(rng.choice([12,18,25,30,40,55,80])*1e6)
             selected=[r for r in records if (city=='all' or r['city']==city) and (cls=='all' or r['class']==cls)
-                and (budget is None or r['priceFrom']*area<=budget)]
+                and (budget is None or select_apartment(r,area,budget) is not None)]
             if not selected: continue
             sid=f'{intent["group"]}/{i}'
             indices=[]
@@ -163,7 +172,7 @@ def main():
         embedding=embed(query) if query else np.zeros(312,dtype=np.float32)
         for r in records[:3]:
             feature=feature_row(r,query,embedding,doc_vectors[r['id']],budget,area,anchors)
-            features_parity.append({'projectId':r['id'],'input':{'query':query,'budget':budget,'area':area},'queryEmbedding':embedding.tolist(),'features':np.asarray(feature,dtype=np.float32).tolist()})
+            features_parity.append({'projectId':r['id'],'input':{'query':query,'budget':budget,'area':area},'selectedLot':select_apartment(r,area,budget),'queryEmbedding':embedding.tolist(),'features':np.asarray(feature,dtype=np.float32).tolist()})
     (ROOT/'ml/parity-fixtures.json').write_text(json.dumps({'encoder':fixtures,'ranker':parity,'features':features_parity},ensure_ascii=False,separators=(',',':'))+'\n')
     report={k:v for k,v in metrics.items() if k not in ['trainGroups','testGroups','validationGroups']}
     print(json.dumps(report,ensure_ascii=False))

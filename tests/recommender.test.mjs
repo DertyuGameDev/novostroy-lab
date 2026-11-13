@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {rankRecommendations,scoreComplex,featureVector,predictRanker,dot} from '../src/recommender.mjs';
+import {rankRecommendations as rankRaw,scoreComplex,featureVector,predictRanker,dot} from '../src/recommender.mjs';
+import {matchComplexes} from '../src/matcher.mjs';
 import {tokenize} from '../src/semantic-encoder.mjs';
 const json=async path=>JSON.parse(await readFile(new URL(path,import.meta.url),'utf8'));
 const {records}=await json('../data/complexes.json');
+const catalog=await json('../data/apartment-lots.json');
+const rankRecommendations=(rows,input,model,profiles,embedding)=>rankRaw(rows,input,model,profiles,embedding,catalog);
 const model=await json('../src/ml-assets/ranker.json');
 const corpus=await json('../src/ml-assets/profiles.json');
 const profiles=new Map(corpus.profiles.map(profile=>[profile.id,profile]));
@@ -24,7 +27,7 @@ test('JSON tree evaluation matches scikit-learn predictions',()=>{
   for(const fixture of fixtures.ranker)assert.ok(Math.abs(predictRanker(fixture.features,model)-fixture.prediction)<1e-8);
 });
 test('browser feature table matches the Python training pipeline',()=>{
-  for(const fixture of fixtures.features){const row=records.find(r=>r.id===fixture.projectId);const actual=featureVector(row,fixture.input,profiles.get(row.id),fixture.queryEmbedding,model);assert.equal(actual.length,model.featureNames.length);for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i]-fixture.features[i])<2e-5,`${fixture.projectId} / ${model.featureNames[i]}`);}
+  for(const fixture of fixtures.features){const row=records.find(r=>r.id===fixture.projectId);const actual=featureVector({...row,selectedLot:fixture.selectedLot},fixture.input,profiles.get(row.id),fixture.queryEmbedding,model);assert.equal(actual.length,model.featureNames.length);for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i]-fixture.features[i])<2e-5,`${fixture.projectId} / ${model.featureNames[i]}`);}
 });
 test('completion feature uses structured status and is independent of the display label',()=>{
   const q=fixtures.encoder[1],input={query:q.text,area:50,budget:null};
@@ -42,7 +45,8 @@ test('one project has the same raw score alone, in the full catalog, and with ex
   const alone=rankRecommendations([row],input,model,profiles,q.embedding);
   const extreme=records.map(r=>r.id===row.id?r:{...r,priceFrom:r.priceFrom*1000});
   const changed=rankRecommendations(extreme,input,model,profiles,q.embedding);
-  const expected=scoreComplex(row,{...input,budget:null},profiles.get(row.id),q.embedding,model);
+  const quoted=matchComplexes([row],{...input,query:''},catalog).matches[0];
+  const expected=scoreComplex(quoted,{...input,budget:null},profiles.get(row.id),q.embedding,model);
   for(const result of [all,alone,changed]){
     const actual=find(result,row.id);assert.equal(actual.score,expected.score);assert.equal(actual.rankScore,expected.score);
     assert.equal(actual.score,predictRanker(actual.features,model));assert.ok(actual.score>0&&actual.score<1);
@@ -72,9 +76,9 @@ test('three large cards and remaining recommendations have no duplicate IDs',()=
 });
 test('structured filters are hard constraints in both recommendation blocks',()=>{
   const embedding=fixtures.encoder[1].embedding;
-  const r=rankRecommendations(records,{city:'Москва',classFilter:'Премиум',budget:30e6,area:50,query:fixtures.encoder[1].text},model,profiles,embedding);
+  const r=rankRecommendations(records,{city:'Москва',classFilter:'Премиум',budget:40e6,area:50,query:fixtures.encoder[1].text},model,profiles,embedding);
   assert.equal(r.featured.length,2);assert.equal(r.recommendations.length,0);
-  for(const row of [...r.featured,...r.recommendations])assert.ok(row.city==='Москва'&&row.class==='Премиум'&&row.estimatedPrice<=30e6);
+  for(const row of [...r.featured,...r.recommendations])assert.ok(row.city==='Москва'&&row.class==='Премиум'&&row.estimatedPrice<=40e6);
 });
 test('semantic query returns relevant projects without literal name matches',()=>{
   const query=fixtures.encoder[1];

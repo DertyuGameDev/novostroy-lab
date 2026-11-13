@@ -2,11 +2,11 @@
   "labelSource": "synthetic_scenarios_not_real_users",
   "split": "GroupShuffleSplit by complete query-template group; numeric variants stay together",
   "seed": 42,
-  "rows": 16815,
-  "scenarios": 3233,
-  "trainRows": 10012,
-  "validationRows": 3328,
-  "testRows": 3475,
+  "rows": 11135,
+  "scenarios": 2507,
+  "trainRows": 6672,
+  "validationRows": 2205,
+  "testRows": 2258,
   "trainGroups": [
     "family:1",
     "family:2",
@@ -87,14 +87,14 @@
   "objective": "independent_query_project_similarity_0_to_1",
   "model": "RandomForestRegressor",
   "test": {
-    "mae": 0.08085685515670173,
-    "rmse": 0.11228148915995657,
-    "r2": 0.3860705842295905
+    "mae": 0.08036168364025331,
+    "rmse": 0.11124528088178144,
+    "r2": 0.3891335713438778
   },
   "validation": {
-    "mae": 0.08161515973600258,
-    "rmse": 0.121726733334457,
-    "r2": 0.220475373164144
+    "mae": 0.08332790323220964,
+    "rmse": 0.12009673555201836,
+    "r2": 0.21415124578864697
   },
   "monotonicFeatures": [
     "semantic_cosine",

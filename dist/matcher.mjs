@@ -1,3 +1,4 @@
+import {nearbyLots,selectApartment} from './apartment-prices.mjs?v=11';
 export const CITIES = ['Москва', 'Сочи', 'Санкт-Петербург'];
 
 export function parseNumber(value) {
@@ -29,25 +30,33 @@ export function normalizeSearch(value) {
   return String(value).normalize('NFKC').toLocaleLowerCase('ru-RU').replaceAll('ё','е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 }
 
-/** The dataset has project-level starting prices, not apartment inventory. */
-export function matchComplexes(records, input = {}) {
+export function compareApartmentUnitPrice(a,b,direction=1) {
+  if(!a.selectedLot||!b.selectedLot)return Number(!a.selectedLot)-Number(!b.selectedLot)||a.name.localeCompare(b.name,'ru');
+  return direction*(a.selectedLot.price/a.selectedLot.area-b.selectedLot.price/b.selectedLot.area)||a.name.localeCompare(b.name,'ru');
+}
+
+/** Quote a published apartment, with an explicit ±10% area tolerance. */
+export function matchComplexes(records, input = {}, catalog = {lots:[]}) {
   const parsed = validateInput(input);
   if (Object.keys(parsed.errors).length) return { ...parsed, matches: [], total: 0, minimumBudget: null };
   const words = normalizeSearch(parsed.query).split(/\s+/).filter(Boolean);
   const candidates = records.filter(row => (parsed.city === 'all' || row.city === parsed.city)
     && (parsed.classFilter === 'all' || row.class === parsed.classFilter)
-    && words.every(word => normalizeSearch(`${row.name} ${row.developer} ${row.district} ${row.city}`).includes(word))).map(row => ({
-    ...row,
-    // Compare unrounded values: rounding must never admit an over-budget option.
-    estimatedPrice: parsed.area === null ? null : row.priceFrom * parsed.area,
-  }));
-  const minimumBudget = candidates.length && parsed.area !== null ? Math.min(...candidates.map(row => row.estimatedPrice)) : null;
-  const matches = candidates.filter(row => parsed.budget === null || row.estimatedPrice <= parsed.budget).sort((a,b) => {
+    && words.every(word => normalizeSearch(`${row.name} ${row.developer} ${row.district} ${row.city}`).includes(word))).map(row => {
+    const nearby=nearbyLots(catalog.lots,row.id,parsed.area);
+    const selectedLot=selectApartment(catalog.lots,row.id,parsed.area,parsed.budget);
+    return {...row,selectedLot,estimatedPrice:selectedLot?.price??null,
+      matchingLotCount:nearby.filter(lot=>parsed.budget===null||lot.price<=parsed.budget).length,
+      minimumApartmentPrice:nearby.length?Math.min(...nearby.map(lot=>lot.price)):null};
+  });
+  const known=candidates.map(row=>row.minimumApartmentPrice).filter(Number.isFinite);
+  const minimumBudget=known.length?Math.min(...known):null;
+  const matches = candidates.filter(row => parsed.budget === null || row.selectedLot!==null).sort((a,b) => {
     const byName = a.name.localeCompare(b.name,'ru');
     if (parsed.sort === 'name') return byName;
-    return (parsed.sort === 'price-desc' ? b.priceFrom-a.priceFrom : a.priceFrom-b.priceFrom) || byName;
+    return compareApartmentUnitPrice(a,b,parsed.sort==='price-desc'?-1:1)||byName;
   });
-  return { ...parsed, matches, total: matches.length, minimumBudget };
+  return { ...parsed, matches, total: matches.length, minimumBudget,missingAreaData:candidates.filter(row=>row.minimumApartmentPrice===null).length };
 }
 
 export function cityStats(records) {
