@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-11-13",
+  "profiles": [
+    {
+      "id": "sochi-yuzhny-park",
+      "description": "Сданный жилой комплекс бизнес-класса в Центральном районе Сочи, микрорайон Макаренко. Рядом зелёный массив; территория закрыта. Поблизости школы и детские сады. Городской вариант для семейной жизни, с балконами и парковкой.",
+      "tags": [
+        "green",
+        "family",
+        "ready"
+      ],
+      "sources": [
+        "https://realty5.ru/complex/zhiloy-kompleks-yuzhnyy-park-289"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "sochi-luigi",
+      "description": "Строящийся бизнес-класс в Центральном районе Сочи. В каталоге заявлены закрытый двор, подземный паркинг, бассейн, фитнес, SPA, коворкинг, детский клуб и терраса на крыше. Указанные удобства относятся к проекту и требуют уточнения по корпусу.",
+      "tags": [
+        "family",
+        "wellness",
+        "terrace"
+      ],
+      "sources": [
+        "https://realty5.ru/complex/zhiloy-kompleks-luidzhi-322"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "sochi-svetskiy-les",
+      "description": "Бизнес-класс на берегу реки Сочи. В проекте предусмотрены собственная набережная, дворы без автомобилей, школа и детский сад, подземная парковка, подогреваемый бассейн. Заявлены виды на горы, реку и город. Комплекс строится.",
+      "tags": [
+        "water",
+        "family",
+        "wellness"
+      ],
+      "sources": [
+        "https://homesrf.ru/obekt/zhk-svetskiy-les"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "sochi-olivia",
+      "description": "Жилой комплекс бизнес-класса в Адлерском районе Сочи. На сайте девелопера представлены оливковый сад, детские и спортивные площадки, воркаут, мини-гольф, кинотеатр, фонтаны, скейт-парк и терренкур. Часть очередей сдана.",
+      "tags": [
+        "green",
+        "family",
+        "sport"
+      ],
+      "sources": [
+        "https://alpika-group.ru/proekty/zhk-oliviya"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "sochi-yuzhnoe-more",
+      "description": "Бизнес-класс в Хостинском районе Сочи, микрорайон Приморье на улице Есауленко. Каталог указывает близость моря, бассейн, SPA, детскую площадку, ландшафтный дизайн, пешеходную и зону отдыха. В таблице исследования корпуса отмечены сданными.",
+      "tags": [
+        "sea",
+        "water",
+        "wellness",
+        "ready"
+      ],
+      "sources": [
+        "https://more-realty.ru/catalog/sochi/novostroyki/603431",
+        "https://dominants.pro/objekty/zhk-yuzhnoe-more-2-sochi/"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "moscow-simvol",
+      "description": "Квартал бизнес-класса Донстрой в Лефортово. Через территорию проходит парк Зелёная река с прогулочными маршрутами, детскими и спортивными пространствами. Городская инфраструктура и общественные пространства; в квартале есть сданные корпуса.",
+      "tags": [
+        "green",
+        "family",
+        "sport"
+      ],
+      "sources": [
+        "https://donstroy.moscow/press/news/simvolichno-zelenaya/",
+        "https://kvadroom.ru/complex/zhiloy-kvartal-simvol"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "moscow-ostrov",
+      "description": "Премиальный проект Донстрой в Мнёвниковской пойме. Окружение реки и природного парка, виды на Крылатское, Гребной канал и зелёные территории. В проекте представлены сданные и строящиеся кварталы.",
+      "tags": [
+        "water",
+        "green",
+        "views"
+      ],
+      "sources": [
+        "https://post.donstroy.moscow/press/news/donstroy-zavershil-vydachu-klyuchey-v-chetvyertom-kvartale-ostrova/",
+        "https://kvadroom.ru/complex/zhk-ostrov"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "moscow-shagal",
+      "description": "Жилой квартал бизнес-класса Группы Эталон в Даниловском районе на набережной Марка Шагала. Расположен у Москвы-реки на бывшей территории ЗИЛ. В квартале есть сданные и строящиеся корпуса, разные форматы квартир.",
+      "tags": [
+        "water",
+        "urban"
+      ],
+      "sources": [
+        "https://uznai.mos.ru/catalog/5619_shagal_shagal",
+        "https://kvadroom.ru/complex/zk-shagal"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "moscow-sydney",
+      "description": "Премиальный комплекс ФСК в Хорошёво-Мнёвниках на Шелепихинской набережной. Проект включает собственную инфраструктуру, парк с выходом к благоустроенной городской набережной. Представлены высотные и переменные по этажности корпуса, есть сданные дома.",
+      "tags": [
+        "water",
+        "green"
+      ],
+      "sources": [
+        "https://fsk.ru/about/news/gk-fsk-i-legenda-dogovorilis-o-sovmestnoj-realizaczii-proekta-sydney-city",
+        "https://fsk.ru/about/news/gk-fsk-zavershila-stroitel-stvo-samoj-vysotnoj-ocheredi-zhk-sydney-city"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "moscow-prime",
+      "description": "Премиальный жилой квартал Optima Development в Хорошёвском районе Москвы. На официальном сайте заявлен закрытый частный парк для резидентов, озеленение и семейная инфраструктура. В проекте есть сданные корпуса, высокие башни и видовые квартиры.",
+      "tags": [
+        "green",
+        "family",
+        "views"
+      ],
+      "sources": [
+        "https://primepark.ru/",
+        "https://kvadroom.ru/complex/zhk-prime-park"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "spb-james",
+      "description": "Сданный дом бизнес-класса на Петроградской набережной. Архитектура с терракотовым кирпичом в стиле лофт на месте бывшей фабрики. Закрытый двор, подземная парковка, квартиры с террасами и разными планировками. Историческое промышленное окружение Петроградской стороны.",
+      "tags": [
+        "heritage",
+        "water",
+        "terrace",
+        "ready"
+      ],
+      "sources": [
+        "https://spbguru.ru/novostroyki/4694-zhk-manufaktura-dzhejjms-bek"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "spb-black-river",
+      "description": "Сданный бизнес-класс LEGENDA в Приморском районе, на берегу Чёрной речки. Огороженная территория, детские и спортивные площадки, тёплая подземная парковка. Дом расположен на улице Чёрная речка, рядом станция метро с таким же названием.",
+      "tags": [
+        "water",
+        "family",
+        "sport",
+        "ready"
+      ],
+      "sources": [
+        "https://novostroev.ru/novostroyki/sankt-peterburg/primorskiy/chernaya-rechka-41/"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "spb-mir",
+      "description": "Сданный клубный дом RBI на Миргородской улице в историческом центре Санкт-Петербурга, рядом с Невским проспектом. Архитектура учитывает историческую застройку. Предусмотрен встроенный муниципальный детский сад; рядом деловая и культурная инфраструктура.",
+      "tags": [
+        "heritage",
+        "family",
+        "urban",
+        "ready"
+      ],
+      "sources": [
+        "https://www.rbi.ru/kvartiry-mir/",
+        "https://www.rbi.ru/blog/news/novaya_ploshad_staronevskiy_rbi_051125/"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "spb-neva",
+      "description": "Премиальный Neva Residence на Петровском острове, Петроградский район. Проект располагается у Малой Невы, рядом Петровский парк. Представлены прогулочная набережная, зелёные дворы, детские и спортивные пространства; первая очередь сдана, запланирована следующая.",
+      "tags": [
+        "water",
+        "green",
+        "family",
+        "sport"
+      ],
+      "sources": [
+        "https://cdn.static.lsr.ru/upload/kelnik.lsrdocuments/955/uwi3dswftsh2mr8cdckn9ilxi6crhlv0/buklet-neva-residence-march-2026-02.pdf",
+        "https://novostroev.ru/novostroyki/sankt-peterburg/petrogradskiy/neva-residence/"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    },
+    {
+      "id": "spb-ldm",
+      "description": "Премиальный жилой комплекс Группы Эталон в Петроградском районе на улице Профессора Попова. В описании представлены квартиры без отделки, кирпично-монолитные дома, разные форматы площадей. Плановый год сдачи по каталогу — 2027.",
+      "tags": [
+        "urban"
+      ],
+      "sources": [
+        "https://mn-spb.ru/buildings/4328",
+        "https://anspb.ru/core/complex.php?id=ldm"
+      ],
+      "checkedAt": "2026-11-13",
+      "evidenceType": "project-marketing-description",
+      "note": "Характеристики проекта по указанным источникам; наличие и условия конкретного лота не подтверждены."
+    }
+  ]
+}

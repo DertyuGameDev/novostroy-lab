@@ -1,0 +1,45 @@
+{
+  "model": "cointegrated/rubert-tiny2",
+  "revision": "e8ed3b0c8bbf4fb6984c3de043bf7d2f4e5969ae",
+  "license": "MIT",
+  "pooling": "L2-normalized CLS",
+  "dimension": 312,
+  "maxLength": 128,
+  "bytes": 29239038,
+  "sha256": "f44ef6afb83956c5897b6aca4f04901f063f3af217861e31d713ca3ba4fc3074",
+  "chunks": [
+    {
+      "file": "rubert-int8-0.bin",
+      "bytes": 8388608,
+      "sha256": "269b69edd01e598a52585a13e3315869edbb345538991557363c1decad6c555d"
+    },
+    {
+      "file": "rubert-int8-1.bin",
+      "bytes": 8388608,
+      "sha256": "4cf2c8b95ab8f7bb0f2a1be2018f72784e7db6b3819efc5b1ea2be233752ecdf"
+    },
+    {
+      "file": "rubert-int8-2.bin",
+      "bytes": 8388608,
+      "sha256": "d9d149cec61a53a368c7adb37c1a699a0821e5a990e25009cfb5fd58350375bc"
+    },
+    {
+      "file": "rubert-int8-3.bin",
+      "bytes": 4073214,
+      "sha256": "8a6a77bdf5ad55ceaa842ca5008f53dfb3e83496b84f6afb558a12c433c7c3bb"
+    }
+  ],
+  "quantizationCosines": [
+    0.9961760640144348,
+    0.9971230030059814,
+    0.9973487854003906,
+    0.9957460165023804,
+    0.9974126219749451
+  ],
+  "specialTokens": {
+    "pad": 0,
+    "unk": 1,
+    "cls": 2,
+    "sep": 3
+  }
+}

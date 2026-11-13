@@ -21,7 +21,7 @@ export function validateInput({ city = 'all', budget = '', area = 50, query = ''
   }
   if (rubles !== null && squareMeters === null) errors.area = 'Укажите площадь для расчёта бюджета.';
   if (!['all','Бизнес','Премиум'].includes(classFilter)) errors.classFilter = 'Выберите класс из списка.';
-  if (!['price-asc','price-desc','name'].includes(sort)) errors.sort = 'Выберите сортировку из списка.';
+  if (!['recommended','price-asc','price-desc','name'].includes(sort)) errors.sort = 'Выберите сортировку из списка.';
   return { errors, city, budget: rubles, area: squareMeters, query: String(query).trim(), classFilter, sort };
 }
 
