@@ -1,63 +1,61 @@
-import {matchComplexes,normalizeSearch,validateInput,compareApartmentUnitPrice} from './matcher.mjs?v=11';
+import {normalizeSearch,validateInput} from './matcher.mjs?v=12';
+import {AREA_TOLERANCE,usableLot} from './apartment-prices.mjs?v=12';
 
-export const TAG_LABELS={green:'Парк и озеленение',water:'У реки',sea:'Близость моря',family:'Детская инфраструктура',wellness:'Бассейн и SPA',heritage:'Историческое окружение',ready:'Сданный комплекс',terrace:'Террасы',sport:'Спортивные площадки',urban:'Городская инфраструктура',views:'Видовые квартиры'};
+// Fixed priorities. Never fitted to examples or normalized across candidates.
+// City outweighs other criteria combined; class outweighs text and numbers.
+export const SIMILARITY_WEIGHTS=Object.freeze({city:32,class:9,text:4,budget:2,area:2});
+const clamp=value=>Math.max(0,Math.min(1,value));
 export function dot(a,b){return a.reduce((sum,value,index)=>sum+value*b[index],0);}
-function lexical(query,row) {
+export function cosineSimilarity(a,b) {
+  if(!a?.length||a.length!==b?.length)return null;
+  const norm=Math.sqrt(dot(a,a)*dot(b,b));
+  return norm>0?clamp(dot(a,b)/norm):null;
+}
+export function lexicalSimilarity(query,row) {
   const words=normalizeSearch(query).split(/\s+/).filter(Boolean);
   const hay=normalizeSearch(`${row.name} ${row.developer} ${row.district} ${row.city}`);
   return words.length?words.filter(word=>hay.includes(word)).length/words.length:0;
 }
-export function featureVector(row,input,profile,queryEmbedding,model) {
-  const hasQuery=Boolean(input.query);
-  const features=[hasQuery&&queryEmbedding?dot(queryEmbedding,profile.embedding):0,lexical(input.query,row),
-    input.budget&&row.selectedLot?Math.min(2,row.selectedLot.price/input.budget):0,Math.log1p(row.selectedLot?row.selectedLot.price/row.selectedLot.area:row.priceFrom)/Math.log(10000001),
-    Number(Boolean(input.budget)),Math.log1p(input.area??50)/Math.log(1001),Number(row.constructionStatus==='Сдан'),Number(hasQuery)];
-  for(const anchor of model.anchors) {
-    const q=hasQuery&&queryEmbedding?dot(queryEmbedding,anchor.embedding):0;
-    const d=dot(profile.embedding,anchor.embedding);
-    features.push(q,d,q*d);
-  }
-  return features.map(Math.fround);
-}
-export function predictRanker(features,model) {
-  let score=model.init;
-  for(const tree of model.trees) {
-    let node=0;
-    while(tree.feature[node]>=0)node=features[tree.feature[node]]<=tree.threshold[node]?tree.left[node]:tree.right[node];
-    score+=model.learningRate*tree.value[node];
-  }
-  return score;
-}
-// A pure pointwise prediction: no other projects or their scores are inputs.
-export function scoreComplex(row,input,profile,queryEmbedding,model) {
-  const features=featureVector(row,input,profile,queryEmbedding,model);
-  const score=predictRanker(features,model);
-  return {...row,profile,features,score,rankScore:score,semanticScore:features[0]};
+export const areaSimilarity=(desired,actual)=>Number.isFinite(actual)&&actual>0?Math.min(desired,actual)/Math.max(desired,actual):0;
+export const budgetSimilarity=(limit,price)=>Number.isFinite(price)&&price>0?Math.min(1,limit/price):0;
+
+export function closestApartment(lots,projectId,input) {
+  const candidates=lots.filter(lot=>lot.projectId===projectId&&usableLot(lot));
+  const score=lot=>(input.area===null?0:SIMILARITY_WEIGHTS.area*areaSimilarity(input.area,lot.area))
+    +(input.budget===null?0:SIMILARITY_WEIGHTS.budget*budgetSimilarity(input.budget,lot.price));
+  return candidates.sort((a,b)=>score(b)-score(a)||a.price-b.price||a.id.localeCompare(b.id))[0]||null;
 }
 
-export function rankRecommendations(records,rawInput,model,profiles,queryEmbedding=null,catalog={lots:[]}) {
-  const input=validateInput(rawInput);
-  if(Object.keys(input.errors).length)return {...input,featured:[],recommendations:[],total:0,minimumBudget:null,mode:'invalid'};
-  // Structured criteria are strict. Text is used for semantic ranking.
-  const pool=matchComplexes(records,{...input,query:'',sort:'price-asc'},catalog);
-  const available=Boolean(model&&profiles&&(!input.query||queryEmbedding));
-  if(!available) {
-    const fallback=matchComplexes(records,input,catalog);
-    return {...fallback,featured:fallback.matches.slice(0,3),recommendations:fallback.matches.slice(3),mode:'literal-fallback'};
+// One project + one request -> one absolute similarity score.
+export function scoreComplex(row,input,profile,queryEmbedding,catalog={lots:[]}) {
+  const selectedLot=closestApartment(catalog.lots,row.id,input),components=[];
+  const add=(criterion,value)=>components.push({criterion,value,weight:SIMILARITY_WEIGHTS[criterion]});
+  if(input.city!=='all')add('city',Number(row.city===input.city));
+  if(input.classFilter!=='all')add('class',Number(row.class===input.classFilter));
+  const semanticScore=input.query?cosineSimilarity(queryEmbedding,profile?.embedding):null;
+  const literalScore=lexicalSimilarity(input.query,row);
+  if(input.query)add('text',literalScore===1?1:(semanticScore??literalScore));
+  if(input.budget!==null)add('budget',budgetSimilarity(input.budget,selectedLot?.price));
+  if(input.area!==null)add('area',areaSimilarity(input.area,selectedLot?.area));
+  const weight=components.reduce((sum,item)=>sum+item.weight,0);
+  const score=weight?components.reduce((sum,item)=>sum+item.value*item.weight,0)/weight:1;
+  const deviations=[];
+  if(input.city!=='all'&&row.city!==input.city)deviations.push(`${row.city} вместо ${input.city}`);
+  if(input.classFilter!=='all'&&row.class!==input.classFilter)deviations.push(`${row.class} вместо ${input.classFilter.toLocaleLowerCase('ru-RU')}`);
+  if(!selectedLot)deviations.push('Нет подтверждённой цены квартиры');
+  else {
+    if(input.budget!==null&&selectedLot.price>input.budget)deviations.push(`Выше бюджета на ${Math.ceil(selectedLot.price-input.budget).toLocaleString('ru-RU')} ₽`);
+    if(input.area!==null&&Math.abs(selectedLot.area-input.area)>input.area*AREA_TOLERANCE+1e-9)
+      deviations.push(`${selectedLot.area.toLocaleString('ru-RU')} м² вместо ${input.area.toLocaleString('ru-RU')} м²`);
   }
-  const ranked=pool.matches.map(row=>scoreComplex(row,input,profiles.get(row.id),queryEmbedding,model));
-  for(const row of ranked) {
-    const tags=[...row.profile.tags].sort((a,b)=>{
-      if(!queryEmbedding)return 0;
-      const score=tag=>{const anchor=model.anchors.find(x=>x.tag===tag);return anchor?dot(queryEmbedding,anchor.embedding):0;};
-      return score(b)-score(a);
-    });
-    row.reasons=[...(input.budget?['В пределах бюджета']:[]),...tags.slice(0,input.budget?1:2).map(tag=>TAG_LABELS[tag]).filter(Boolean)];
-  }
+  return {...row,profile,selectedLot,estimatedPrice:selectedLot?.price??null,score,rankScore:score,semanticScore,literalScore,components,deviations};
+}
+
+export function rankRecommendations(records,rawInput,profiles,queryEmbedding=null,catalog={lots:[]}) {
+  const input=validateInput({...rawInput,sort:'recommended'});
+  if(Object.keys(input.errors).length)return {...input,featured:[],recommendations:[],total:0,mode:'invalid'};
+  const ranked=records.map(row=>scoreComplex(row,input,profiles?.get(row.id),queryEmbedding,catalog));
   ranked.sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
-  const featured=ranked.slice(0,3),recommendations=ranked.slice(3);
-  if(input.sort==='price-asc')recommendations.sort((a,b)=>compareApartmentUnitPrice(a,b));
-  if(input.sort==='price-desc')recommendations.sort((a,b)=>compareApartmentUnitPrice(a,b,-1));
-  if(input.sort==='name')recommendations.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-  return {...pool,...input,featured,recommendations,total:ranked.length,mode:'hybrid-ml'};
+  return {...input,featured:ranked.slice(0,3),recommendations:ranked.slice(3),total:ranked.length,
+    mode:input.query?(queryEmbedding&&profiles?'direct-cosine':'direct-lexical'):'direct-filters'};
 }

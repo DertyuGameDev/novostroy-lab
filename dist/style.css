@@ -79,3 +79,5 @@ body:not([data-view=selection]) .site-header{height:80px}body:not([data-view=sel
 @media(prefers-reduced-motion:reduce){:root{--motion:0ms}*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .area-note{max-width:850px;margin:0 0 22px;font-size:12px;color:var(--muted)}
+
+.deviations{margin-top:10px;font-size:11px;line-height:1.5;color:var(--muted)}.recommendation-card .deviations{font-size:10px}

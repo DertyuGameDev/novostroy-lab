@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 LOT_CATALOG=json.loads((ROOT/'data/apartment-lots.json').read_text())
 LOTS_BY_PROJECT={pid:[lot for lot in LOT_CATALOG['lots'] if lot['projectId']==pid and lot['eligibility']=='included'] for pid in {lot['projectId'] for lot in LOT_CATALOG['lots']}}
 
@@ -151,15 +151,15 @@ def main():
     assert not set(metrics['trainGroups']) & set(metrics['testGroups'])
     assert not set(metrics['trainGroups']) & set(metrics['validationGroups'])
     assert not set(metrics['validationGroups']) & set(metrics['testGroups'])
-    target=ROOT/'src/ml-assets'
+    target=Path(__file__).resolve().parent
     model_json=export_model(model)
     model_json['anchors']=[{'tag':tag,'text':ANCHORS[tag],'embedding':vec.tolist()} for tag,vec in anchors.items()]
     (target/'ranker.json').write_text(json.dumps(model_json,ensure_ascii=False,separators=(',',':'))+'\n')
     corpus={'schemaVersion':1,'encoderSha256':encoder_meta['sha256'],'dimension':312,'profiles':[
         {**by_id[r['id']],'text':documents[r['id']],'embedding':doc_vectors[r['id']].tolist()} for r in records]}
     (target/'profiles.json').write_text(json.dumps(corpus,ensure_ascii=False,separators=(',',':'))+'\n')
-    (ROOT/'ml/metrics.json').write_text(json.dumps(metrics,ensure_ascii=False,indent=2)+'\n')
-    with (ROOT/'ml/training-features.csv').open('w',newline='') as file:
+    (Path(__file__).resolve().parent/'metrics.json').write_text(json.dumps(metrics,ensure_ascii=False,indent=2)+'\n')
+    with (Path(__file__).resolve().parent/'training-features.csv').open('w',newline='') as file:
         writer=csv.DictWriter(file,fieldnames=list(rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(rows)
     # Browser/Python parity fixtures use texts, token ids, embeddings and true estimator outputs.
     fixtures=[]
@@ -173,7 +173,7 @@ def main():
         for r in records[:3]:
             feature=feature_row(r,query,embedding,doc_vectors[r['id']],budget,area,anchors)
             features_parity.append({'projectId':r['id'],'input':{'query':query,'budget':budget,'area':area},'selectedLot':select_apartment(r,area,budget),'queryEmbedding':embedding.tolist(),'features':np.asarray(feature,dtype=np.float32).tolist()})
-    (ROOT/'ml/parity-fixtures.json').write_text(json.dumps({'encoder':fixtures,'ranker':parity,'features':features_parity},ensure_ascii=False,separators=(',',':'))+'\n')
+    (Path(__file__).resolve().parent/'parity-fixtures.json').write_text(json.dumps({'encoder':fixtures,'ranker':parity,'features':features_parity},ensure_ascii=False,separators=(',',':'))+'\n')
     report={k:v for k,v in metrics.items() if k not in ['trainGroups','testGroups','validationGroups']}
     print(json.dumps(report,ensure_ascii=False))
 

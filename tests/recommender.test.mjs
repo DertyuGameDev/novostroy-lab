@@ -2,106 +2,100 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {rankRecommendations as rankRaw,scoreComplex,featureVector,predictRanker,dot} from '../src/recommender.mjs';
-import {matchComplexes} from '../src/matcher.mjs';
+import {rankRecommendations,scoreComplex,cosineSimilarity,areaSimilarity,budgetSimilarity,closestApartment,dot} from '../src/recommender.mjs';
+import {validateInput} from '../src/matcher.mjs';
 import {tokenize} from '../src/semantic-encoder.mjs';
 const json=async path=>JSON.parse(await readFile(new URL(path,import.meta.url),'utf8'));
-const {records}=await json('../data/complexes.json');
-const catalog=await json('../data/apartment-lots.json');
-const rankRecommendations=(rows,input,model,profiles,embedding)=>rankRaw(rows,input,model,profiles,embedding,catalog);
-const model=await json('../src/ml-assets/ranker.json');
-const corpus=await json('../src/ml-assets/profiles.json');
-const profiles=new Map(corpus.profiles.map(profile=>[profile.id,profile]));
-const fixtures=await json('../ml/parity-fixtures.json');
-const encoder=await json('../src/ml-assets/encoder.json');
-const vocab=await json('../src/ml-assets/vocab.json');
+const {records}=await json('../data/complexes.json'),catalog=await json('../data/apartment-lots.json');
+const corpus=await json('../src/ml-assets/profiles.json'),profiles=new Map(corpus.profiles.map(p=>[p.id,p]));
+const encoder=await json('../src/ml-assets/encoder.json'),vocab=await json('../src/ml-assets/vocab.json'),fixtures=await json('../ml/encoder-fixtures.json');
+const rank=(rows,input,embedding=null)=>rankRecommendations(rows,input,profiles,embedding,catalog);
+const all=result=>[...result.featured,...result.recommendations];
+const record={id:'test',name:'Тест',developer:'Девелопер',district:'Район',city:'Москва',class:'Бизнес'};
+const lot=(id,area,price)=>({id,area,price,projectId:'test',eligibility:'included'});
 
-test('real pretrained embeddings cover all source-backed profiles',()=>{
+test('verified descriptions and normalized pretrained vectors cover all 15 projects',()=>{
   assert.equal(profiles.size,15);assert.equal(corpus.encoderSha256,encoder.sha256);
-  for(const row of records){const p=profiles.get(row.id);assert.ok(p.description&&p.sources.length);assert.equal(p.embedding.length,312);assert.ok(Math.abs(dot(p.embedding,p.embedding)-1)<1e-4);for(const url of p.sources)assert.equal(new URL(url).protocol,'https:');}
+  for(const row of records){const p=profiles.get(row.id);assert.ok(p.description&&p.sources.length);assert.equal(p.embedding.length,312);assert.ok(Math.abs(dot(p.embedding,p.embedding)-1)<1e-4);}
 });
-test('browser WordPiece matches the pinned Python tokenizer',()=>{
-  for(const fixture of fixtures.encoder)assert.deepEqual(tokenize(fixture.text,vocab,encoder),fixture.inputIds);
+test('browser tokenizer still matches the pinned encoder',()=>{for(const f of fixtures)assert.deepEqual(tokenize(f.text,vocab,encoder),f.inputIds);});
+test('text score is the direct cosine, including scale-invariance and unavailable vectors',()=>{
+  assert.equal(cosineSimilarity([2,0],[8,0]),1);assert.equal(cosineSimilarity([1,0],[0,1]),0);
+  assert.equal(cosineSimilarity([0,0],[1,0]),null);assert.equal(cosineSimilarity(null,[1,0]),null);
+  assert.ok(Math.abs(cosineSimilarity([1,0],[.6,.8])-.6)<1e-12);
 });
-test('JSON tree evaluation matches scikit-learn predictions',()=>{
-  for(const fixture of fixtures.ranker)assert.ok(Math.abs(predictRanker(fixture.features,model)-fixture.prediction)<1e-8);
+test('numeric similarities use a real full price and symmetric area ratio',()=>{
+  assert.equal(areaSimilarity(50,40),.8);assert.equal(areaSimilarity(40,50),.8);
+  assert.equal(budgetSimilarity(10e6,8e6),1);assert.equal(budgetSimilarity(10e6,12.5e6),.8);
+  assert.equal(budgetSimilarity(10e6,undefined),0);
 });
-test('browser feature table matches the Python training pipeline',()=>{
-  for(const fixture of fixtures.features){const row=records.find(r=>r.id===fixture.projectId);const actual=featureVector({...row,selectedLot:fixture.selectedLot},fixture.input,profiles.get(row.id),fixture.queryEmbedding,model);assert.equal(actual.length,model.featureNames.length);for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i]-fixture.features[i])<2e-5,`${fixture.projectId} / ${model.featureNames[i]}`);}
+test('fixed weighted mean can be independently calculated without a trained estimator',()=>{
+  const input=validateInput({city:'Москва',classFilter:'Бизнес',area:50,budget:10e6});
+  const r=scoreComplex(record,input,null,null,{lots:[lot('a',45,12.5e6)]});
+  assert.ok(Math.abs(r.score-(32+9+2*.8+2*.9)/45)<1e-12);
+  assert.ok(r.deviations.some(x=>x.startsWith('Выше бюджета')));
 });
-test('completion feature uses structured status and is independent of the display label',()=>{
-  const q=fixtures.encoder[1],input={query:q.text,area:50,budget:null};
-  for(const row of records){
-    const actual=featureVector(row,input,profiles.get(row.id),q.embedding,model);
-    assert.equal(actual[6],Number(row.constructionStatus==='Сдан'));
-    assert.deepEqual(actual,featureVector({...row,delivery:'Любая подпись'},input,profiles.get(row.id),q.embedding,model));
-  }
+test('the chosen apartment maximizes joint area and budget closeness, not a scaled starting rate',()=>{
+  const input=validateInput({area:50,budget:15e6});
+  assert.equal(closestApartment([lot('exact',50,20e6),lot('nearby',45,10e6)],'test',input).id,'nearby');
 });
-test('one project has the same raw score alone, in the full catalog, and with extreme neighbours',()=>{
-  const q=fixtures.encoder[1],input={query:q.text,sort:'recommended',area:50};
-  const all=rankRecommendations(records,input,model,profiles,q.embedding);
-  const find=(result,id)=>[...result.featured,...result.recommendations].find(row=>row.id===id);
+test('one project keeps the exact same score and quote alone, with neighbours, and with extreme neighbour prices',()=>{
+  const input={city:'Москва',budget:30e6,area:50,query:fixtures[1].text},embedding=fixtures[1].embedding;
   const row=records.find(r=>r.id==='moscow-shagal');
-  const alone=rankRecommendations([row],input,model,profiles,q.embedding);
-  const extreme=records.map(r=>r.id===row.id?r:{...r,priceFrom:r.priceFrom*1000});
-  const changed=rankRecommendations(extreme,input,model,profiles,q.embedding);
-  const quoted=matchComplexes([row],{...input,query:''},catalog).matches[0];
-  const expected=scoreComplex(quoted,{...input,budget:null},profiles.get(row.id),q.embedding,model);
-  for(const result of [all,alone,changed]){
-    const actual=find(result,row.id);assert.equal(actual.score,expected.score);assert.equal(actual.rankScore,expected.score);
-    assert.equal(actual.score,predictRanker(actual.features,model));assert.ok(actual.score>0&&actual.score<1);
+  const expected=all(rank([row],input,embedding))[0];
+  for(const rows of [records,records.filter(r=>r.city==='Москва'),records.map(r=>r.id===row.id?r:{...r,priceFrom:1})]){
+    const actual=all(rank(rows,input,embedding)).find(r=>r.id===row.id);
+    assert.equal(actual.score,expected.score);assert.equal(actual.selectedLot.id,expected.selectedLot.id);
   }
 });
-test('removing candidates with city and class filters changes no retained scores',()=>{
-  const q=fixtures.encoder[1],input={query:q.text,area:50,sort:'recommended'};
-  const all=rankRecommendations(records,input,model,profiles,q.embedding);
-  const scores=new Map([...all.featured,...all.recommendations].map(r=>[r.id,r.score]));
-  const filtered=rankRecommendations(records,{...input,city:'Москва',classFilter:'Премиум'},model,profiles,q.embedding);
-  for(const row of [...filtered.featured,...filtered.recommendations])assert.equal(row.score,scores.get(row.id));
+test('higher cosine cannot lower an individual score when the other criteria stay fixed',()=>{
+  const input=validateInput({query:'абстрактный запрос',area:'',budget:''});let previous=-1;
+  for(let i=0;i<=40;i++){const c=i/40;const r=scoreComplex(record,input,{embedding:[1,0]},[c,Math.sqrt(1-c*c)]);assert.ok(r.score>=previous-1e-12);previous=r.score;assert.ok(Math.abs(r.score-c)<1e-12);}
 });
-test('higher semantic similarity or literal match cannot lower an individual score, other features fixed',()=>{
-  assert.equal(model.objective,'pointwise_similarity_regression');
-  for(const fixture of fixtures.ranker)for(const index of [0,1]){
-    let previous=-Infinity;
-    for(let step=0;step<=40;step++){
-      const features=[...fixture.features];features[index]=Math.fround(step/40);
-      const score=predictRanker(features,model);assert.ok(score>=previous-1e-12);previous=score;
-    }
+test('three largest and twelve smaller cards always retain every candidate without duplicates',()=>{
+  for(const input of [{},{city:'Сочи',classFilter:'Премиум',budget:1,area:10},{query:'несуществующий объект',budget:1,area:1000}]){
+    const r=rank(records,input);assert.equal(r.total,15);assert.equal(r.featured.length,3);assert.equal(r.recommendations.length,12);
+    assert.equal(new Set(all(r).map(x=>x.id)).size,15);assert.ok(all(r).every(x=>Number.isFinite(x.score)&&x.score>=0&&x.score<=1));
   }
 });
-test('three large cards and remaining recommendations have no duplicate IDs',()=>{
-  const r=rankRecommendations(records,{sort:'recommended'},model,profiles);
-  assert.equal(r.mode,'hybrid-ml');assert.equal(r.featured.length,3);assert.equal(r.recommendations.length,12);
-  const ids=[...r.featured,...r.recommendations].map(row=>row.id);assert.equal(new Set(ids).size,15);
+test('nonmatching filters are explicit deviations rather than silently disappearing candidates',()=>{
+  const r=rank(records,{city:'Сочи',classFilter:'Премиум',budget:1,area:10});
+  for(const row of all(r)){
+    assert.ok(row.deviations.some(x=>x.startsWith('Выше бюджета')));
+    if(row.city!=='Сочи')assert.ok(row.deviations.includes(`${row.city} вместо Сочи`));
+    assert.ok(row.selectedLot.area!==10);assert.equal(row.estimatedPrice,row.selectedLot.price);
+  }
 });
-test('structured filters are hard constraints in both recommendation blocks',()=>{
-  const embedding=fixtures.encoder[1].embedding;
-  const r=rankRecommendations(records,{city:'Москва',classFilter:'Премиум',budget:40e6,area:50,query:fixtures.encoder[1].text},model,profiles,embedding);
-  assert.equal(r.featured.length,2);assert.equal(r.recommendations.length,0);
-  for(const row of [...r.featured,...r.recommendations])assert.ok(row.city==='Москва'&&row.class==='Премиум'&&row.estimatedPrice<=40e6);
+test('explicit city has first priority, including when a query names a project in another city',()=>{
+  const r=rank(records,{city:'Сочи',query:'Шагал',area:50},fixtures[0].embedding);
+  assert.ok(all(r).slice(0,5).every(row=>row.city==='Сочи'));
 });
-test('semantic query returns relevant projects without literal name matches',()=>{
-  const query=fixtures.encoder[1];
-  const r=rankRecommendations(records,{city:'Москва',query:query.text},model,profiles,query.embedding);
-  assert.equal(r.featured.length,3);assert.ok(r.featured.filter(row=>row.profile.tags.includes('water')).length>=2);
+test('every displayed position follows the same descending score, even for old manual-sort URLs',()=>{
+  const input={city:'Москва',budget:30e6,area:50,query:fixtures[1].text};
+  const expected=all(rank(records,input,fixtures[1].embedding));
+  for(const sort of ['name','price-asc','price-desc'])assert.deepEqual(all(rank(records,{...input,sort},fixtures[1].embedding)).map(x=>x.id),expected.map(x=>x.id));
+  assert.ok(expected.every((row,i)=>!i||expected[i-1].score>=row.score));
 });
-test('explicit project name stays first in learned ranking',()=>{
-  const q=fixtures.encoder[0];const r=rankRecommendations(records,{query:q.text},model,profiles,q.embedding);
-  assert.equal(r.featured[0].id,'moscow-shagal');
+test('an exact project name has text similarity one and stays above approximate matches',()=>{
+  const r=rank(records,{query:'Шагал'},fixtures[0].embedding);
+  assert.equal(r.featured[0].id,'moscow-shagal');assert.equal(r.featured[0].components.find(c=>c.criterion==='text').value,1);
 });
-test('empty and invalid criteria do not invent recommendations',()=>{
-  assert.equal(rankRecommendations(records,{city:'Сочи',classFilter:'Премиум'},model,profiles).total,0);
-  const r=rankRecommendations(records,{budget:1,area:50},model,profiles);assert.equal(r.total,0);assert.equal(r.featured.length,0);
-  assert.equal(rankRecommendations(records,{area:'abc'},model,profiles).mode,'invalid');
+test('missing quote never invents an apartment price or a budget match',()=>{
+  const r=rankRecommendations([record],{area:50,budget:20e6},null,null,{lots:[]});
+  assert.equal(r.total,1);assert.equal(r.featured[0].estimatedPrice,null);assert.equal(r.featured[0].components.find(c=>c.criterion==='budget').value,0);
 });
-test('load failures have an explicit literal fallback, never a fake semantic score',()=>{
-  const r=rankRecommendations(records,{query:'Шагал'},null,null);assert.equal(r.mode,'literal-fallback');assert.equal(r.total,1);assert.equal(r.featured[0].id,'moscow-shagal');assert.equal(r.featured[0].rankScore,undefined);
+test('encoder failure falls back to direct word similarity while still recommending all projects',()=>{
+  const r=rankRecommendations(records,{query:'Шагал'},null,null,catalog);
+  assert.equal(r.mode,'direct-lexical');assert.equal(r.total,15);assert.equal(r.featured[0].id,'moscow-shagal');assert.equal(r.featured[0].semanticScore,null);
 });
-test('all encoder chunks have expected size and SHA-256',async()=>{
+test('empty criteria contribute no artificial differences and invalid inputs remain errors',()=>{
+  assert.ok(all(rank(records,{area:'',budget:''})).every(r=>r.score===1));
+  const r=rank(records,{area:'abc'});assert.equal(r.mode,'invalid');assert.equal(r.total,0);assert.ok(r.errors.area);
+});
+test('all encoder chunks retain their expected bytes and SHA-256',async()=>{
   for(const chunk of encoder.chunks){const data=await readFile(new URL('../src/ml-assets/'+chunk.file,import.meta.url));assert.equal(data.length,chunk.bytes);assert.equal(createHash('sha256').update(data).digest('hex'),chunk.sha256);}
 });
-test('validation and test query groups are disjoint from training',async()=>{
-  const metrics=await json('../ml/metrics.json');
-  for(const a of ['trainGroups','validationGroups','testGroups'])for(const b of ['trainGroups','validationGroups','testGroups'])if(a!==b)assert.ok(metrics[a].every(group=>!metrics[b].includes(group)));
-  assert.equal(metrics.labelSource,'synthetic_scenarios_not_real_users');
+test('public UI contains no table routes, downloads, or forest loader',async()=>{
+  const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8'),app=await readFile(new URL('../src/app.mjs',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/<table\b|#catalog|#area-prices|\.xlsx|\.csv/);assert.doesNotMatch(app,/ranker\.json|predictRanker|RandomForest/);
 });

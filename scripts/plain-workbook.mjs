@@ -26,7 +26,7 @@ await writeFile(path.join(out,'preview.png'),new Uint8Array(await preview.arrayB
 const inspect=await wb.inspect({kind:'region',sheetId:'ЖК',range:'F5:I9',maxChars:1400,tableMaxRows:5,tableMaxCols:4});
 console.log(inspect.ndjson);
 const xlsx=await SpreadsheetFile.exportXlsx(wb);await xlsx.save(path.join(out,'ЖК_13-11-2026_единый_формат.xlsx'));
-await copyFile(path.join(out,'ЖК_13-11-2026_единый_формат.xlsx'),path.join(root,'dist/downloads/complexes.xlsx'));
+await copyFile(path.join(out,'ЖК_13-11-2026_единый_формат.xlsx'),path.join(root,'research/complexes.xlsx'));
 await writeFile(path.join(out,'ЖК_13-11-2026_единый_формат.csv'),toCsv([tableHeaders,...rows]));
-await copyFile(path.join(out,'ЖК_13-11-2026_единый_формат.csv'),path.join(root,'dist/downloads/complexes-plain.csv'));
+await copyFile(path.join(out,'ЖК_13-11-2026_единый_формат.csv'),path.join(root,'research/complexes-plain.csv'));
 console.log('Exported 15 rows, one sheet, no fills, tables, charts or conditional formatting.');

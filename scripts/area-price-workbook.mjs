@@ -51,7 +51,7 @@ for(const [sheetName,range,file]of [['Цены по площади','A1:I26','su
   const blob=await wb.render({sheetName,range,scale:1,format:'png'});await writeFile(path.join(out,file),new Uint8Array(await blob.arrayBuffer()));
 }
 const output=await SpreadsheetFile.exportXlsx(wb);const file=path.join(out,'Цены_квартир_по_площади_13-11-2026.xlsx');await output.save(file);
-await copyFile(file,path.join(root,'dist/downloads/apartment-prices.xlsx'));
+await copyFile(file,path.join(root,'research/apartment-prices.xlsx'));
 await writeFile(path.join(out,'Цены_по_площади.csv'),toCsv([headers,...rows.map((row,i)=>{const values=[...data[i]];values.splice(3,5,row.count,row.minUnit??'Нет данных',row.maxUnit??'Нет данных',row.minPrice??'Нет данных',row.maxPrice??'Нет данных');values[8]=catalog.checkedAt;return values;})]));
 await writeFile(path.join(out,'expected-summary.json'),JSON.stringify(rows));
 console.log(JSON.stringify({file,lotRows:raw.length,summaryRows:rows.length}));

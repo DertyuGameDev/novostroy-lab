@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, copyFile, cp } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile, cp, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {tableHeaders,tableRows,toCsv} from './table-data.mjs';
@@ -6,6 +6,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.join(root,'dist');
 await mkdir(path.join(out,'data'),{recursive:true});
 await mkdir(path.join(out,'downloads'),{recursive:true});
+for(const file of ['downloads/complexes.xlsx','downloads/apartment-prices.xlsx','downloads/complexes.csv','downloads/complexes-plain.csv','downloads/ml-metrics.json','ml-assets/ranker.json'])await rm(path.join(out,file),{force:true});
 for(const file of ['index.html','style.css','app.mjs','search-ui.mjs','matcher.mjs','recommender.mjs','apartment-prices.mjs','semantic-encoder.mjs','favicon.svg']) await copyFile(path.join(root,'src',file),path.join(out,file));
 await cp(path.join(root,'src/fonts'),path.join(out,'fonts'),{recursive:true});
 await cp(path.join(root,'src/ml-assets'),path.join(out,'ml-assets'),{recursive:true});
@@ -15,8 +16,5 @@ await copyFile(path.join(root,'data/apartment-lots.json'),path.join(out,'data/ap
 const {records}=JSON.parse(await readFile(path.join(root,'data/complexes.json'),'utf8'));
 const csv=toCsv([tableHeaders,...tableRows(records)]);
 await writeFile(path.join(root,'research/complexes.csv'),csv);
-await copyFile(path.join(root,'research/complexes.csv'),path.join(out,'downloads/complexes.csv'));
-await writeFile(path.join(out,'downloads/complexes-plain.csv'),csv);
 for(const name of ['report.md','ai-work.md','model-card.md']) await copyFile(path.join(root,'docs',name),path.join(out,'downloads',name));
-await copyFile(path.join(root,'ml/metrics.json'),path.join(out,'downloads/ml-metrics.json'));
-console.log('Built: 15 records, CSV, app and documentation → dist/');
+console.log('Built: 15 projects, direct similarity, no public spreadsheets or forest model → dist/');
