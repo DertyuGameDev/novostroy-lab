@@ -1,6 +1,7 @@
-import { validateInput, cityStats, CITIES } from './matcher.mjs?v=6';
-import { rankRecommendations } from './recommender.mjs?v=6';
-import { semanticEncoder } from './semantic-encoder.mjs?v=6';
+import { initSearchUI } from './search-ui.mjs?v=7';
+import { validateInput, cityStats, CITIES } from './matcher.mjs?v=7';
+import { rankRecommendations } from './recommender.mjs?v=7';
+import { semanticEncoder } from './semantic-encoder.mjs?v=7';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -9,6 +10,7 @@ const rubles = value => `${number(value)} ₽`;
 const date = value => value ? value.split('-').reverse().join('.') : 'Не указана';
 const link = (url, text, className = '') => `<a class="${className}" href="${escape(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 let records = [];
+const searchUI = initSearchUI();
 
 function route() {
   const id = location.hash.slice(1) || 'selection';
@@ -18,6 +20,11 @@ function route() {
     if (item.dataset.nav === selected) item.setAttribute('aria-current','page');
     else item.removeAttribute('aria-current');
   }
+  document.body.dataset.view=selected;
+  searchUI.closeFilters();
+  for(const menu of document.querySelectorAll('.materials-menu'))menu.open=false;
+  searchUI.update();
+  window.scrollTo(0,0);
   document.title = `${{selection:'Каталог новостроек',catalog:'15 ЖК с источниками',research:'Исследование цен',process:'Работа с ИИ'}[selected]} — Метр`;
 }
 
@@ -34,40 +41,22 @@ function pendingResults() {
 }
 
 function renderCard(row, area, rank, featured) {
-  let node = cardNodes.get(row.id);
-  const profile = row.profile || profiles?.get(row.id);
-  if (!node) {
-    node = document.createElement('article');
-    node.className = 'complex-card';
-    node.dataset.id = row.id;
-    node.innerHTML = `
-      <div class="card-top"><span class="badge">${escape(row.class)}</span><span class="city-label">${escape(row.city)}</span><span class="rank"></span></div>
-      <h3>${escape(row.name)}</h3><p class="district">${escape(row.district)} · ${escape(row.developer)}</p>
-      <p class="profile-summary"></p><ul class="reason-list" aria-label="Особенности варианта"></ul><p class="match-score"></p>
-      <p class="cost"><span class="price-prefix">от</span> ${number(row.priceFrom)} <span class="price-unit">₽/м²</span></p>
-      <div class="apartment-estimate"><span></span><strong></strong></div><p class="calculation"></p>
-      <p class="delivery">Сдача: ${link(row.deliverySourceUrl || row.sourceUrl,escape(row.delivery))}</p>
-      <details class="profile-details"><summary>Подробнее о комплексе</summary><p></p><span></span></details>
-      <div class="card-footer"><span>Источник: ${date(row.sourceDate)}${row.sourceDate ? '' : ' (дата прайса)'}</span>${link(row.sourceUrl,'Цена в источнике ↗','text-link')}</div>`;
+  let node=cardNodes.get(row.id);
+  const profile=row.profile||profiles?.get(row.id);
+  if(!node){
+    node=document.createElement('article');node.className='complex-card';node.dataset.id=row.id;
+    node.innerHTML=`<p class="card-label">${escape(row.city)} · ${escape(row.class)}</p><h3>${escape(row.name)}</h3><p class="district">${escape(row.district)}</p>
+      <p class="cost"><small>от</small> ${link(row.sourceUrl,number(row.priceFrom))} <small>₽/м²</small></p><p class="apartment-estimate"></p><p class="delivery">Сдача: ${link(row.deliverySourceUrl||row.sourceUrl,escape(row.delivery))}</p>
+      <details class="profile-details"><summary>Подробнее</summary><p class="description"></p><p>Застройщик: ${escape(row.developer)}</p><p class="match-score"></p><p>Проверено: ${date(row.checkedAt)}. Дата источника: ${date(row.sourceDate)}.</p><p>${escape(row.notes)}</p><span class="profile-source"></span></details>`;
     cardNodes.set(row.id,node);
   }
-  node.hidden = false;
-  node.classList.toggle('featured-card',featured);
-  node.classList.toggle('recommendation-card',!featured);
-  node.querySelector('.rank').textContent = featured ? `0${rank+1}` : '';
-  const score=node.querySelector('.match-score');
-  score.hidden=!$('#search').value.trim()||!Number.isFinite(row.score);
+  node.hidden=false;node.classList.toggle('featured-card',featured);node.classList.toggle('recommendation-card',!featured);
+  node.querySelector('.apartment-estimate').textContent=row.estimatedPrice===null?'':`${number(area)} м² ≈ ${rubles(row.estimatedPrice)}`;
+  node.querySelector('.description').textContent=profile?.description||'';
+  node.querySelector('.profile-source').innerHTML=profile?link(profile.sources[0],'Источник характеристик','source-link'):'';
+  const score=node.querySelector('.match-score');score.hidden=!$('#search').value.trim()||!Number.isFinite(row.score);
   score.textContent=score.hidden?'':`Соответствие запросу: ${row.score.toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})} / 1`;
-  if(Number.isFinite(row.score))node.dataset.matchScore=String(row.score);
-  else delete node.dataset.matchScore;
-  node.querySelector('.profile-summary').textContent = profile?.description || '';
-  node.querySelector('.reason-list').innerHTML = (row.reasons || []).map(reason=>`<li>${escape(reason)}</li>`).join('');
-  node.querySelector('.apartment-estimate span').textContent = area === null ? 'Расчёт стоимости' : `Квартира ${number(area)} м²`;
-  node.querySelector('.apartment-estimate strong').textContent = row.estimatedPrice === null ? 'Укажите площадь' : `≈ ${rubles(row.estimatedPrice)}`;
-  node.querySelector('.calculation').textContent = area === null ? '' : `${rubles(row.priceFrom)} / м² × ${number(area)} м²`;
-  node.querySelector('.profile-details').hidden = !profile;
-  node.querySelector('.profile-details p').textContent = profile?.description || '';
-  node.querySelector('.profile-details span').innerHTML = profile ? link(profile.sources[0],'Источник характеристик ↗') : '';
+  if(Number.isFinite(row.score))node.dataset.matchScore=String(row.score);else delete node.dataset.matchScore;
   return node;
 }
 
@@ -108,8 +97,8 @@ async function renderResults(focusError = false) {
   $('#selection').dataset.rankingMode = result.mode;
   $('#ranking-status').textContent = semanticFailure || result.mode === 'literal-fallback'
     ? 'Поиск по названию: модель рекомендаций недоступна. Попробуйте изменить запрос или обновить страницу.' : '';
-  $('#result-status').textContent = `Показано ${result.featured.length} лучших · всего ${result.total} ЖК`;
-  $('#results-title').textContent = result.featured.length ? 'Под ваш запрос' : 'Совпадений не найдено';
+  $('#result-status').textContent = `${result.total} ЖК`;
+  $('#results-title').textContent = result.featured.length ? (result.query ? 'Под ваш запрос' : 'Новостройки') : 'Ничего не найдено';
   const container = $('#result-cards'), empty = container.querySelector('.empty');
   if(result.total)empty?.remove();
   for (const [index,row] of result.featured.entries()) {
@@ -117,7 +106,7 @@ async function renderResults(focusError = false) {
     if(container.children[index]!==node)container.insertBefore(node,container.children[index]||null);
   }
   $('#recommendations').hidden = !result.recommendations.length;
-  $('#recommendation-count').textContent = `Ещё ${result.recommendations.length} ЖК по вашим фильтрам`;
+  $('#recommendation-count').textContent = `Ещё ${result.recommendations.length} ЖК`;
   for (const [index,row] of result.recommendations.entries()) {
     const node = renderCard(row,result.area,index,false), list = $('#recommendation-cards');
     if(list.children[index]!==node)list.insertBefore(node,list.children[index]||null);
@@ -126,7 +115,7 @@ async function renderResults(focusError = false) {
     const node = empty || document.createElement('div');
     if(!empty) {
       node.className='empty';
-      node.innerHTML='<h3>По этим параметрам ничего не найдено</h3><p></p><button class="secondary" type="button">Сбросить фильтры</button>';
+      node.innerHTML='<h2>Попробуйте другие параметры</h2><p></p><button class="secondary" type="button">Сбросить фильтры</button>';
       node.querySelector('button').addEventListener('click',resetFilters);
       container.append(node);
     }
@@ -160,7 +149,7 @@ function resetFilters() {
 function renderCatalog() {
   const city = $('#catalog-city').value;
   const filtered = records.filter(row => city === 'all' || row.city === city);
-  $('#catalog-count').textContent = `Показано ${filtered.length} из 15 ЖК`;
+  $('#catalog-count').textContent = `${filtered.length} ЖК`;
   $('#catalog-body').innerHTML = filtered.map(row => `<tr>
     <td><span class="city-label">${escape(row.city)}</span><strong>${escape(row.name)}</strong><details><summary>Проверка и примечания</summary><p>${escape(row.notes)}</p><p>Проверено: ${date(row.checkedAt)}. ${row.verification === 'search-index' ? 'Использован поисковый снимок страницы.' : 'Страница открыта при исследовании.'}</p>${row.classSourceUrl ? link(row.classSourceUrl,'Источник класса ↗') : ''}${row.developerSourceUrl ? link(row.developerSourceUrl,'Источник застройщика ↗') : ''}</details></td>
     <td>${escape(row.developer)}</td><td>${escape(row.district)}</td><td><span class="badge">${escape(row.class)}</span></td>
@@ -171,7 +160,6 @@ function renderCatalog() {
 
 function renderResearch() {
   const stats = cityStats(records);
-  $('#hero-prices').innerHTML = stats.map(row => link(row.cheapest.sourceUrl,`<span>${escape(row.city)}</span><strong>${number(row.min)} <small>↗</small></strong>`,'entry-price')).join('');
   $('#stats').innerHTML = stats.map(row => `<article class="stat"><h2>${escape(row.city)}</h2><p class="stat-label">Минимальная цена за м²</p><p class="value">${number(row.min)} <span>₽/м²</span></p><p>${link(row.cheapest.sourceUrl,escape(row.cheapest.name)+' ↗')}</p><small>Минимум среди ${row.count} ЖК выборки</small></article>`).join('');
   const colors = {'Москва':'moscow','Сочи':'sochi','Санкт-Петербург':'spb'};
   const max = Math.ceil(Math.max(...records.map(row=>row.priceFrom))/100000)*100000;
@@ -202,7 +190,7 @@ try {
   records = payload.records;
   try {
     const loadJson=async path=>{const response=await fetch(path);if(!response.ok)throw new Error(path);return response.json();};
-    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=6'),loadJson('./ml-assets/profiles.json?v=6')]);
+    const [model,corpus]=await Promise.all([loadJson('./ml-assets/ranker.json?v=7'),loadJson('./ml-assets/profiles.json?v=7')]);
     ranker=model;profiles=new Map(corpus.profiles.map(profile=>[profile.id,profile]));
   } catch(error) { console.warn('ML artifacts unavailable:',error.message); }
   const query = new URLSearchParams(location.search);

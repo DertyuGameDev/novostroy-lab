@@ -1,4 +1,4 @@
-import {matchComplexes,normalizeSearch,validateInput} from './matcher.mjs?v=6';
+import {matchComplexes,normalizeSearch,validateInput} from './matcher.mjs?v=7';
 
 export const TAG_LABELS={green:'Парк и озеленение',water:'У реки',sea:'Близость моря',family:'Детская инфраструктура',wellness:'Бассейн и SPA',heritage:'Историческое окружение',ready:'Сданный комплекс',terrace:'Террасы',sport:'Спортивные площадки',urban:'Городская инфраструктура',views:'Видовые квартиры'};
 export function dot(a,b){return a.reduce((sum,value,index)=>sum+value*b[index],0);}

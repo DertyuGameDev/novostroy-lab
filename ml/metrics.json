@@ -87,14 +87,14 @@
   "objective": "independent_query_project_similarity_0_to_1",
   "model": "RandomForestRegressor",
   "test": {
-    "mae": 0.08078418188303615,
-    "rmse": 0.11225465338573413,
-    "r2": 0.3863640128700888
+    "mae": 0.08085685515670173,
+    "rmse": 0.11228148915995657,
+    "r2": 0.3860705842295905
   },
   "validation": {
-    "mae": 0.08154101852245535,
-    "rmse": 0.12171410964839577,
-    "r2": 0.2206370461778332
+    "mae": 0.08161515973600258,
+    "rmse": 0.121726733334457,
+    "r2": 0.220475373164144
   },
   "monotonicFeatures": [
     "semantic_cosine",

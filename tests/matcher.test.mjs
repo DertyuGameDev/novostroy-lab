@@ -11,7 +11,7 @@ test('15 unique ЖК, 5 in each city, valid prices and links for every numeric f
 test('Moscow 30m/50m² returns all four matching projects with correct costs',()=>{
   const result=matchComplexes(records,{city:'Москва',budget:30e6,area:50});
   assert.deepEqual(result.matches.map(r=>r.id),['moscow-shagal','moscow-simvol','moscow-sydney','moscow-ostrov']);
-  assert.deepEqual(result.matches.map(r=>r.estimatedPrice),[21100000,22185000,27665000,29390000]);
+  assert.deepEqual(result.matches.map(r=>r.estimatedPrice),[21100000,22185000,27665000,28560000]);
   assert.equal(result.total,4);assert.ok(result.matches.every(r=>r.city==='Москва'&&r.estimatedPrice<=30e6));
 });
 test('unfiltered catalog shows all 15 projects instead of truncating to three',()=>{

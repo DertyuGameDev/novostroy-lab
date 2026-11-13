@@ -1,86 +1,26 @@
 <!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#182126">
-  <meta name="description" content="Исследование 15 ЖК в Москве, Сочи и Петербурге: источники цен, сравнение и подбор по бюджету и площади.">
-  <title>Метр — каталог новостроек</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=6">
-  <script type="module" src="./app.mjs?v=6"></script>
-</head>
-<body>
-  <a class="skip" href="#main">Перейти к содержимому</a>
-  <header class="header wrap">
-    <a class="wordmark" href="#selection" aria-label="Метр, подбор">метр<span class="brand-point">.</span><span class="brand-description">Исследование<br>новостроек</span></a>
-    <nav aria-label="Основная навигация">
-      <a href="#selection" data-nav="selection" aria-current="page">Найти ЖК</a>
-      <a href="#catalog" data-nav="catalog">15 комплексов</a>
-      <a href="#research" data-nav="research">Исследование</a>
-      <a href="#process" data-nav="process">Работа с ИИ</a>
-    </nav>
-    <span class="edition">Срез данных<br><b>12.11.2026</b></span>
-  </header>
-  <main id="main" class="wrap" tabindex="-1">
-    <div id="loading" role="status">Загружаем исследование…</div>
-    <div id="load-error" hidden role="alert" class="notice">Не удалось загрузить данные. Обновите страницу или откройте скачанную таблицу.</div>
-    <section id="selection" class="view" aria-labelledby="selection-title" hidden>
-      <div class="selection-intro">
-          <p class="eyebrow">Бизнес и премиум / 15 жилых комплексов</p>
-          <h1 id="selection-title">Каталог <em>новостроек.</em></h1>
-          <p class="hero-copy">Опишите, что важно для жизни, или введите название ЖК. Три лучших варианта — в первом ряду, похожие рекомендации — ниже.</p>
-      </div>
-      <form id="match-form" class="filter-panel" novalidate aria-label="Поиск и фильтры ЖК">
-        <div class="search-row">
-          <div class="field search-field"><label for="search">Ваши пожелания или название ЖК</label><div class="search-input"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" name="query" type="search" placeholder="Например: семейный квартал у реки или Шагал" autocomplete="off" maxlength="200" aria-describedby="ranking-status"></div></div>
-          <button class="secondary" type="button" id="reset-filters">Сбросить фильтры</button>
-        </div>
-        <div class="filter-grid">
-          <div class="field"><label for="city">Город</label><select id="city" name="city" aria-describedby="city-error"><option value="all">Все города</option><option>Москва</option><option>Сочи</option><option>Санкт-Петербург</option></select><p id="city-error" class="error"></p></div>
-          <div class="field"><label for="class-filter">Класс жилья</label><select id="class-filter" name="classFilter" aria-describedby="class-filter-error"><option value="all">Любой класс</option><option>Бизнес</option><option>Премиум</option></select><p id="class-filter-error" class="error"></p></div>
-          <div class="field"><label for="budget">Бюджет квартиры до, ₽</label><input id="budget" name="budget" type="text" inputmode="decimal" placeholder="Без ограничений" autocomplete="off" aria-describedby="filters-hint budget-error"><p id="budget-error" class="error"></p></div>
-          <div class="field"><label for="area">Площадь для расчёта, м²</label><input id="area" name="area" type="text" inputmode="decimal" value="50" autocomplete="off" aria-describedby="filters-hint area-error"><p id="area-error" class="error"></p></div>
-          <div class="field"><label for="sort">Рекомендации ниже</label><select id="sort" name="sort" aria-describedby="sort-error"><option value="recommended">По соответствию</option><option value="price-asc">Сначала дешевле за м²</option><option value="price-desc">Сначала дороже за м²</option><option value="name">По названию</option></select><p id="sort-error" class="error"></p></div>
-        </div>
-        <p id="filters-hint" class="form-note">Город, класс и бюджет соблюдаются во всех рекомендациях. Оценка квартиры = цена от за м² × площадь; наличие нужно уточнить.</p>
-        <p id="ranking-status" class="ranking-status" role="status" aria-live="polite"></p>
-        <p id="filter-errors" class="sr-only" role="status" aria-live="polite"></p>
-      </form>
-      <div id="results" class="results" aria-labelledby="results-title">
-        <div class="section-heading"><div><p class="eyebrow">Лучшие совпадения</p><h2 id="results-title">Под ваш запрос</h2></div><p id="result-status" role="status" aria-live="polite"></p></div>
-        <p id="model-note" class="model-note">Скор 0–1 оценивает соответствие каждого ЖК отдельно. Обучение — на синтетических сценариях. <a href="#process">Как устроены рекомендации ↗</a></p>
-        <div id="result-cards" class="cards featured-cards" aria-busy="false"></div>
-        <section id="recommendations" class="recommendations" aria-labelledby="recommendations-title" hidden>
-          <div class="section-heading"><div><p class="eyebrow">Другие варианты</p><h2 id="recommendations-title">Также рекомендуем</h2></div><p id="recommendation-count"></p></div>
-          <div id="recommendation-cards" class="cards recommendation-cards"></div>
-        </section>
-        <p id="estimate-note" class="fineprint">Минимальная цена по ЖК может относиться к другой площади, этажу или очереди. Это оценка по таблице, а не доступный лот. Отделка, парковка и расходы на сделку не учтены.</p>
-      </div>
-      <div class="market-entry"><p class="eyebrow">Минимальная цена в выборке, ₽/м²</p><div id="hero-prices" class="hero-prices"></div></div>
-    </section>
-    <section id="catalog" class="view" aria-labelledby="catalog-title" hidden>
-      <div class="page-heading"><p class="eyebrow">Каталог / 15 комплексов</p><h1 id="catalog-title">Данные.<br><em>С открытыми источниками.</em></h1><p>По пять ЖК в каждом городе. Ссылки на цены и сроки — в каждой строке; замечания о проверке раскрываются под названием.</p></div>
-      <div class="toolbar"><div class="field compact"><label for="catalog-city">Город в таблице</label><select id="catalog-city"><option value="all">Все города</option><option>Москва</option><option>Сочи</option><option>Санкт-Петербург</option></select></div><p id="catalog-count" role="status"></p><a class="secondary" href="./downloads/complexes.xlsx" download>Скачать XLSX ↓</a><a class="text-link" href="./downloads/complexes.csv" download>CSV ↓</a></div>
-      <div class="table-scroll" role="region" aria-label="Таблица жилых комплексов, прокручивается по горизонтали" tabindex="0"><table><caption class="sr-only">15 жилых комплексов. Проверка 12 ноября 2026 года.</caption><thead><tr><th scope="col">Город / ЖК</th><th scope="col">Застройщик</th><th scope="col">Район</th><th scope="col">Класс</th><th scope="col">Цена от, ₽/м²</th><th scope="col">Срок сдачи</th><th scope="col">Дата источника</th></tr></thead><tbody id="catalog-body"></tbody></table></div>
-      <aside class="notice"><b>Как читать таблицу.</b> «Сдан» — завершённый ЖК с предложениями в каталоге новостроек. У строящихся проектов указан срок из выбранного источника, а не единая дата для всех корпусов. Дата проверки страницы и дата прайса различаются. Класс взят из каталога и может отличаться у других площадок.</aside>
-    </section>
-    <section id="research" class="view" aria-labelledby="research-title" hidden>
-      <div class="page-heading"><p class="eyebrow">Исследование / Сравнение цен</p><h1 id="research-title">Минимальная цена<br><em>квадратного метра.</em></h1><p>Самая низкая опубликованная цена за м² среди пяти выбранных ЖК каждого города. Рядом — комплекс и ссылка на источник.</p></div>
-      <div id="stats" class="stats"></div>
-      <div class="chart-panel"><div class="section-heading"><h2>Цена от по каждому ЖК</h2><a class="text-link" href="./downloads/prices-chart.png" download>График PNG ↓</a></div><div class="legend"><span><i class="moscow"></i>Москва</span><span><i class="sochi"></i>Сочи</span><span><i class="spb"></i>Санкт-Петербург</span></div><div id="chart"></div><p class="fineprint">₽ за м² · ссылки на значения — в таблице. Срез проверки: 12.11.2026.</p></div>
-      <div class="findings"><p class="eyebrow">Что видно из данных</p><ol id="findings-list"></ol></div>
-      <aside class="notice"><b>Границы исследования.</b> Это целевая выборка из 15 ЖК, а не статистически репрезентативный обзор рынка. Состав различается: Сочи — 5 бизнес; Москва — 2 бизнес и 3 премиум; Петербург — 3 бизнес и 2 премиум. Цены из разных каталогов и дат, условия скидок и состав лотов могут отличаться. Причины ценовых различий по этой таблице доказать нельзя.</aside>
-    </section>
-    <section id="process" class="view" aria-labelledby="process-title" hidden>
-      <div class="page-heading"><p class="eyebrow">Методика / Работа с ИИ</p><h1 id="process-title">От источников<br><em>к решению.</em></h1><p>Поиск, проверка, расчёты и код — в одном воспроизводимом проекте.</p></div>
-      <div class="process-grid"><article class="paper"><span class="number">01</span><h2>Сбор и проверка</h2><p>С помощью ChatGPT собраны кандидаты, затем сверены цены, класс и сроки в открытых каталогах. Комфорт-класс и апарт-отели исключены. Для двух страниц использована индексированная выдача — это отмечено в строках.</p></article><article class="paper"><span class="number">02</span><h2>Исправленная ошибка</h2><p>В черновик для «Шагал» попала устаревшая цена из поисковой выдачи — 435 000 ₽/м². Открытая страница на 12.11 показывала 422 000 ₽/м². В итоговые данные перенесено новое значение, расчёты пересчитаны.</p><a class="text-link" href="https://kvadroom.ru/complex/zk-shagal" target="_blank" rel="noopener noreferrer">Проверить источник ↗</a></article><article class="paper"><span class="number">03</span><h2>Пять промптов</h2><p>В журнале сохранены пять фактических запросов пользователя, включая согласование синтетического обучения.</p><a class="text-link" href="./downloads/ai-work.md" download>Промпты и журнал ↓</a></article><article class="paper"><span class="number">04</span><h2>Расчёт и проверка</h2><p>Каталог ранжирует ЖК по смыслу пожеланий и параметрам: три крупных карточки и остальные компактно. Стоимость считается по площади. Эмбеддинги и прогноз модели выполняются в браузере.</p><a class="text-link" href="./downloads/report.md" download>Отчёт и методика ↓</a></article></div>
-      <article class="paper ml-method"><p class="eyebrow">Как работают рекомендации</p><h2>Независимая оценка каждого ЖК</h2><p>Описания 15 ЖК преобразованы RuBERT в векторы размерности 312. Модель случайного леса отдельно оценивает похожесть каждого ЖК запросу по 41 признаку: семантика, бюджет, площадь, цена и готовность. Скор одного ЖК не зависит от соседних вариантов. Обучение — на 16 815 синтетических примерах. Реальной истории выбора покупателей пока нет.</p><p>Первыми показаны до трёх лучших вариантов, ниже — остальные. Город, класс и бюджет проверяются до ранжирования. Названия и характеристики можно проверить в источниках на карточках.</p><div class="download-row"><a href="./downloads/model-card.md" download>Методика и проверка модели ↓</a><a href="https://github.com/DertyuGameDev/novostroy-lab-20261112/tree/main/ml" target="_blank" rel="noopener noreferrer">Обучение и таблица признаков ↗</a></div></article>
-      <div class="submission"><div><p class="eyebrow">Комплект для трека А</p><h2>Данные, код и демонстрация</h2><p>Таблица с источниками, график, выводы, описание работы с ИИ и три скриншота.</p></div><a class="primary" href="https://github.com/DertyuGameDev/novostroy-lab-20261112" target="_blank" rel="noopener noreferrer">Открыть проект на GitHub ↗</a></div>
-      <div class="download-row"><a href="./downloads/01-selection.png" target="_blank" rel="noopener noreferrer">Подбор: Москва ↗</a><a href="./downloads/02-research.png" target="_blank" rel="noopener noreferrer">Исследование ↗</a><a href="./downloads/03-mobile.png" target="_blank" rel="noopener noreferrer">Мобильная версия ↗</a></div>
-    </section>
-    <noscript><p class="notice">Для подборщика нужен JavaScript. <a href="./downloads/complexes.csv">Скачать таблицу CSV</a> или <a href="./downloads/report.md">прочитать отчёт</a>.</p></noscript>
-  </main>
-  <footer class="wrap footer"><a class="wordmark" href="#selection">метр<span>.</span></a><p>Исследование новостроек · 12 ноября 2026<br>Учебный проект, трек А. Цены требуют уточнения у продавца.</p><a href="./downloads/complexes.xlsx" download>Таблица с источниками ↓</a></footer>
-</body>
-</html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffffff"><meta name="description" content="Подбор новостроек в Москве, Сочи и Санкт-Петербурге."><title>Метр — новостройки</title><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./style.css?v=7"><script type="module" src="./app.mjs?v=7"></script></head>
+<body data-view="selection">
+<a class="skip" href="#main">К результатам</a><div class="header-space" aria-hidden="true"></div>
+<header id="site-header" class="site-header">
+  <div class="topline wrap"><a class="wordmark" href="#selection" aria-label="Метр, подбор новостроек">метр.</a><nav aria-label="Разделы"><a href="#catalog">Таблица</a><details class="materials-menu"><summary>Материалы</summary><div class="menu-panel"><a href="#research">Исследование</a><a href="#process">Как работает подбор</a><a href="./downloads/complexes.xlsx" download>Скачать таблицу</a><a href="https://github.com/DertyuGameDev/novostroy-lab" target="_blank" rel="noopener noreferrer">Код проекта</a></div></details></nav></div>
+  <form id="match-form" class="search-form" novalidate aria-label="Поиск новостроек">
+    <div id="search-highlight" class="search-highlight" aria-hidden="true"></div>
+    <div class="search-segment query-segment"><label for="search">Что ищете</label><input id="search" name="query" type="search" placeholder="Название ЖК или пожелания" autocomplete="off" maxlength="200" aria-describedby="ranking-status"></div>
+    <div class="search-segment"><label for="city">Город</label><select id="city" name="city" aria-describedby="city-error"><option value="all">Любой город</option><option>Москва</option><option>Сочи</option><option>Санкт-Петербург</option></select><p id="city-error" class="error"></p></div>
+    <div class="search-segment"><label for="budget">Бюджет до, ₽</label><input id="budget" name="budget" type="text" inputmode="decimal" placeholder="Без ограничений" autocomplete="off" aria-describedby="budget-error"><p id="budget-error" class="error"></p></div>
+    <div class="search-segment"><label for="area">Площадь, м²</label><input id="area" name="area" type="text" inputmode="decimal" value="50" autocomplete="off" aria-describedby="area-error"><p id="area-error" class="error"></p></div>
+    <div class="search-actions"><button id="toggle-filters" class="filter-button" type="button" aria-label="Дополнительные фильтры" aria-expanded="false" aria-controls="extra-filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg></button><button class="search-button" type="submit" aria-label="Найти ЖК"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>Найти</span></button></div>
+    <div id="extra-filters" class="extra-filters" hidden><div class="field"><label for="class-filter">Класс жилья</label><select id="class-filter" name="classFilter" aria-describedby="class-filter-error"><option value="all">Любой класс</option><option>Бизнес</option><option>Премиум</option></select><p id="class-filter-error" class="error"></p></div><div class="field"><label for="sort">Остальные варианты</label><select id="sort" name="sort" aria-describedby="sort-error"><option value="recommended">По соответствию</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select><p id="sort-error" class="error"></p></div><button id="reset-filters" class="text-button" type="button">Сбросить фильтры</button></div>
+    <p id="filter-errors" class="filter-errors" role="alert"></p>
+  </form>
+</header>
+<main id="main" class="wrap" tabindex="-1">
+  <p id="loading" role="status">Загрузка…</p><p id="load-error" hidden role="alert">Не удалось загрузить данные. Обновите страницу.</p>
+  <section id="selection" class="view" aria-labelledby="results-title" hidden><div id="results" class="results"><div class="section-heading"><h1 id="results-title">Новостройки</h1><p id="result-status" role="status" aria-live="polite"></p></div><p id="ranking-status" class="ranking-status" role="status" aria-live="polite"></p><div id="result-cards" class="cards featured-cards" aria-busy="true"></div><section id="recommendations" class="recommendations" aria-labelledby="recommendations-title" hidden><div class="section-heading"><h2 id="recommendations-title">Ещё варианты</h2><p id="recommendation-count" class="sr-only"></p></div><div id="recommendation-cards" class="cards recommendation-cards"></div></section><p id="estimate-note" class="fineprint">Стоимость квартиры — оценка по минимальной цене за м². Наличие лота нужно уточнить.</p></div></section>
+  <section id="catalog" class="view" aria-labelledby="catalog-title" hidden><div class="section-heading"><h1 id="catalog-title">Таблица ЖК</h1><a href="./downloads/complexes.xlsx" download>Скачать XLSX</a></div><div class="toolbar"><label for="catalog-city" class="sr-only">Город в таблице</label><select id="catalog-city"><option value="all">Все города</option><option>Москва</option><option>Сочи</option><option>Санкт-Петербург</option></select><p id="catalog-count" role="status"></p><a href="./downloads/complexes-plain.csv" download>CSV</a></div><div class="table-scroll" role="region" aria-label="Таблица жилых комплексов" tabindex="0"><table><caption class="sr-only">15 жилых комплексов, проверка 13 ноября 2026 года</caption><thead><tr><th scope="col">Город / ЖК</th><th scope="col">Застройщик</th><th scope="col">Район</th><th scope="col">Класс</th><th scope="col">От, ₽/м²</th><th scope="col">Сдача</th><th scope="col">Дата источника</th></tr></thead><tbody id="catalog-body"></tbody></table></div></section>
+  <section id="research" class="view" aria-labelledby="research-title" hidden><div class="section-heading"><h1 id="research-title">Цены за м²</h1><a href="./downloads/report.md" download>Отчёт</a></div><div id="stats" class="stats"></div><div class="chart-panel"><div class="section-heading"><h2>Минимальная цена каждого ЖК</h2><a href="./downloads/prices-chart.png" download>График</a></div><div class="legend"><span><i class="moscow"></i>Москва</span><span><i class="sochi"></i>Сочи</span><span><i class="spb"></i>Санкт-Петербург</span></div><div id="chart"></div></div><ol id="findings-list" class="findings-list"></ol><p class="fineprint">15 ЖК — целевая выборка. Даты прайсов различаются; это не оценка всего рынка.</p></section>
+  <section id="process" class="view method" aria-labelledby="process-title" hidden><h1 id="process-title">Как работает подбор</h1><ol><li>Город, класс и бюджет отсекают неподходящие варианты.</li><li>RuBERT превращает запрос и описания ЖК в векторы из 312 чисел.</li><li>Для пары «запрос — один ЖК» рассчитывается 41 признак: смысловая близость, совпадение названия, цена, бюджет, площадь и характеристики.</li><li>Обученный случайный лес выдаёт отдельный скор 0–1. Оценка не зависит от других ЖК в выдаче.</li><li>Карточки сортируются по полученному скору: три крупных, остальные ниже.</li></ol><p>Модель обучена на синтетических примерах. Реальной истории выбора покупателей пока нет.</p><div class="code-links"><a href="https://github.com/DertyuGameDev/novostroy-lab/blob/main/ml/train_ranker.py" target="_blank" rel="noopener noreferrer">Обучение — train_ranker.py</a><a href="https://github.com/DertyuGameDev/novostroy-lab/blob/main/src/recommender.mjs" target="_blank" rel="noopener noreferrer">Оценка ЖК — recommender.mjs</a><a href="https://github.com/DertyuGameDev/novostroy-lab/blob/main/src/semantic-encoder.mjs" target="_blank" rel="noopener noreferrer">Эмбеддинги — semantic-encoder.mjs</a></div><div class="download-row"><a href="./downloads/model-card.md" download>Полная методика</a><a href="./downloads/ai-work.md" download>Промпты и работа с ИИ</a><a href="./downloads/01-selection.png" target="_blank" rel="noopener noreferrer">Скриншоты</a></div></section>
+  <noscript><p>Для поиска нужен JavaScript. <a href="./downloads/complexes.xlsx">Скачать таблицу</a></p></noscript>
+</main><footer class="wrap footer"><span>Проверка источников: 13.11.2026</span><a href="#process">Как работает подбор</a></footer>
+</body></html>

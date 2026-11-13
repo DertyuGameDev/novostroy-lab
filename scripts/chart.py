@@ -21,7 +21,7 @@ ax.set_xlabel('Минимальная опубликованная цена, ₽
 fig.suptitle('Новостройки: минимальная цена за м² по каждому ЖК',x=.04,y=.97,ha='left',fontsize=19,fontweight='bold',color='#182126')
 handles=[plt.Rectangle((0,0),1,1,color=col) for col in colors.values()]
 fig.legend(handles,list(colors),loc='upper left',bbox_to_anchor=(.035,.928),ncol=3,frameon=False,fontsize=11)
-fig.text(.04,.045,'15 ЖК · по 5 на город · проверка 12.11.2026 · источники каждой цены в таблице',fontsize=10,color='#616d75')
+fig.text(.04,.045,'15 ЖК · по 5 на город · проверка 13.11.2026 · источники каждой цены в таблице',fontsize=10,color='#616d75')
 fig.text(.04,.022,'Минимумы по городам: Москва — 422 000; Сочи — 290 000; Санкт-Петербург — 348 400 ₽/м². Только эта выборка.',fontsize=9,color='#616d75')
 fig.subplots_adjust(left=.285,right=.965,top=.855,bottom=.13)
 for target in [ROOT/'research',ROOT/'dist/downloads']:
